@@ -259,6 +259,16 @@
     }
     .nav-settings-item.push-on .nav-settings-item-state { color: #fff; background: var(--accent-pink); }
 
+    .push-history-list { max-height: 50vh; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 0.6rem; margin: 0.5rem 0; }
+    .push-history-item {
+      background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px;
+      padding: 0.7rem 0.85rem;
+    }
+    .push-history-item-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
+    .push-history-item-body { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.35rem; }
+    .push-history-item-time { font-size: 0.7rem; color: var(--text-tertiary); }
+    .push-history-empty { text-align: center; padding: 2rem 1rem; color: var(--text-tertiary); font-size: 0.85rem; }
+
     .page-view { display: none; width: 100%; min-height: calc(100vh - 50px); }
     .page-view.active { display: block; }
 
@@ -756,6 +766,9 @@
             <span>📅 기념일 설정</span>
             <span class="nav-settings-item-state" id="navSettingsDDay">D+0</span>
           </div>
+          <div class="nav-settings-item" onclick="openPushHistoryModal(); closeSettingsMenu();">
+            <span>🕘 알림 내역</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1191,6 +1204,18 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="pushHistoryModal" onclick="closePushHistoryModal()">
+    <div class="apple-modal" onclick="event.stopPropagation()">
+      <h3 class="modal-title">🕘 알림 내역</h3>
+      <p class="modal-desc">이 기기로 받은 푸시 알림 기록이에요. 사이트가 닫혀 있을 때 온 알림도 여기서 다시 볼 수 있어요.</p>
+      <div id="pushHistoryList" class="push-history-list"></div>
+      <div class="modal-buttons">
+        <button class="btn-modal-cancel" onclick="clearAllPushHistory()">전체 지우기</button>
+        <button class="btn-modal-save" onclick="closePushHistoryModal()">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="apple-footer">
     <p>Designed with Love by <strong>정수 & 진하</strong>.</p>
     <p>Copyright © 2026 정수와진하. All rights reserved.</p>
@@ -1225,6 +1250,97 @@
     function isPushConfigured() {
       return firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('여기에') !== 0 &&
              FCM_VAPID_KEY && FCM_VAPID_KEY.indexOf('여기에') !== 0;
+    }
+
+    // ------------------------------------------------------------------
+    // 알림 내역 저장소 (IndexedDB)
+    // 사이트가 닫혀 있을 때(백그라운드) 온 알림은 firebase-messaging-sw.js가 여기에 똑같이 기록한다.
+    // localStorage와 달리 서비스워커에서도 접근 가능해서, 앱을 다시 열었을 때 그동안 놓친 알림까지 볼 수 있다.
+    // ------------------------------------------------------------------
+    const PUSH_HISTORY_DB_NAME = 'jeongsu_jinha_push_history';
+    const PUSH_HISTORY_STORE = 'notifications';
+
+    function openPushHistoryDB() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) { reject(new Error('IndexedDB 미지원')); return; }
+        const req = indexedDB.open(PUSH_HISTORY_DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(PUSH_HISTORY_STORE)) {
+            db.createObjectStore(PUSH_HISTORY_STORE, { keyPath: 'id', autoIncrement: true });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function savePushHistory(title, body) {
+      try {
+        const db = await openPushHistoryDB();
+        const tx = db.transaction(PUSH_HISTORY_STORE, 'readwrite');
+        tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, time: Date.now() });
+      } catch(e) {}
+    }
+
+    function getPushHistory(limit = 50) {
+      return new Promise(async (resolve) => {
+        try {
+          const db = await openPushHistoryDB();
+          const tx = db.transaction(PUSH_HISTORY_STORE, 'readonly');
+          const store = tx.objectStore(PUSH_HISTORY_STORE);
+          const items = [];
+          const req = store.openCursor(null, 'prev'); // 최신순
+          req.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor && items.length < limit) {
+              items.push(cursor.value);
+              cursor.continue();
+            } else {
+              resolve(items);
+            }
+          };
+          req.onerror = () => resolve(items);
+        } catch(e) { resolve([]); }
+      });
+    }
+
+    async function clearPushHistoryDB() {
+      try {
+        const db = await openPushHistoryDB();
+        const tx = db.transaction(PUSH_HISTORY_STORE, 'readwrite');
+        tx.objectStore(PUSH_HISTORY_STORE).clear();
+      } catch(e) {}
+    }
+
+    function formatHistoryTime(ts) {
+      const d = new Date(ts);
+      return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    async function openPushHistoryModal() {
+      const list = await getPushHistory();
+      const container = document.getElementById('pushHistoryList');
+      if (list.length === 0) {
+        container.innerHTML = `<div class="push-history-empty">아직 받은 알림이 없어요.<br>🔔 알림을 켜두면 여기에 기록이 쌓여요.</div>`;
+      } else {
+        container.innerHTML = list.map(item => `
+          <div class="push-history-item">
+            <div class="push-history-item-title">${escapeHtml(item.title || '')}</div>
+            <div class="push-history-item-body">${escapeHtml(item.body || '')}</div>
+            <div class="push-history-item-time">${formatHistoryTime(item.time)}</div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('pushHistoryModal').classList.add('active');
+    }
+    function closePushHistoryModal() {
+      document.getElementById('pushHistoryModal').classList.remove('active');
+    }
+    async function clearAllPushHistory() {
+      if (!confirm('알림 내역을 전부 지울까요?')) return;
+      await clearPushHistoryDB();
+      openPushHistoryModal();
     }
 
     function updatePushButtonUI() {
@@ -1314,6 +1430,7 @@
         fcmMessagingInstance.onMessage((payload) => {
           const n = payload.notification || {};
           showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
+          savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!');
         });
       } catch(e) {
         console.error('푸시 알림 등록 실패:', e);
