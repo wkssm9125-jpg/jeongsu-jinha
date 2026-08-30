@@ -20,12 +20,43 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// ------------------------------------------------------------------
+// 알림 내역 저장소 (IndexedDB) — index.html의 것과 이름/구조가 반드시 똑같아야
+// 나중에 사이트를 열었을 때 "🕘 알림 내역" 화면에서 이 기록을 같이 읽을 수 있다.
+// ------------------------------------------------------------------
+const PUSH_HISTORY_DB_NAME = 'jeongsu_jinha_push_history';
+const PUSH_HISTORY_STORE = 'notifications';
+
+function openPushHistoryDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(PUSH_HISTORY_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(PUSH_HISTORY_STORE)) {
+        db.createObjectStore(PUSH_HISTORY_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function savePushHistory(title, body) {
+  try {
+    const db = await openPushHistoryDB();
+    const tx = db.transaction(PUSH_HISTORY_STORE, 'readwrite');
+    tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, time: Date.now() });
+  } catch(e) {}
+}
+
 // 사이트가 닫혀 있거나 다른 탭을 보고 있을 때(백그라운드) 도착하는 알림을 처리한다.
 messaging.onBackgroundMessage((payload) => {
   const notification = payload.notification || {};
   const title = notification.title || '💖 정수와진하';
+  const body = notification.body || '새로운 정보가 추가되었습니다. 확인해주세요!';
+  savePushHistory(title, body); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
   const options = {
-    body: notification.body || '새로운 정보가 추가되었습니다. 확인해주세요!',
+    body: body,
     tag: 'jeongsu-jinha-update', // 같은 태그면 알림이 쌓이지 않고 최신 것으로 교체됨
     data: { url: (payload.fcmOptions && payload.fcmOptions.link) || (payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || '/' }
   };
