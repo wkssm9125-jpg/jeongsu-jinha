@@ -240,6 +240,12 @@
 
     /* 알림/테마/기념일 설정을 한데 모은 톱니바퀴 드롭다운 메뉴 */
     .nav-settings-wrap { position: relative; flex-shrink: 0; }
+    .nav-settings-badge {
+      position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px;
+      background: var(--accent-pink); color: #fff; font-size: 0.66rem; font-weight: 700;
+      border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--bg-primary); line-height: 1;
+    }
     .nav-settings-menu {
       display: none; position: absolute; top: calc(100% + 0.6rem); right: 0; min-width: 190px;
       background: var(--modal-bg); border: 1px solid var(--border-card); border-radius: 14px;
@@ -753,7 +759,7 @@
       <div class="nav-upload-badge" id="navUploadBadge">⏳ 업로드 중 0%</div>
       <div class="sync-status-badge syncing" id="cloudSyncStatus">⏳ 불러오는 중...</div>
       <div class="nav-settings-wrap">
-        <div class="nav-theme-btn" id="navSettingsBtn" onclick="toggleSettingsMenu(event)" title="설정">⚙ <span class="label">설정</span></div>
+        <div class="nav-theme-btn" id="navSettingsBtn" onclick="toggleSettingsMenu(event)" title="설정">⚙ <span class="label">설정</span><span class="nav-settings-badge" id="navSettingsBadge" style="display:none;"></span></div>
         <div class="nav-settings-menu" id="navSettingsMenu">
           <div class="nav-settings-item" id="navSettingsPush" onclick="togglePushNotifications(); closeSettingsMenu();">
             <span>🔔 푸시 알림</span>
@@ -1318,6 +1324,24 @@
       return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     }
 
+    // 설정 톱니바퀴에 표시되는 안 읽은 알림 개수 배지.
+    // "안 읽음"은 서버가 아니라 이 기기 기준으로, 마지막으로 "알림 내역"을 열어본 시각 이후에
+    // 쌓인 기록 개수로 계산한다 (기기별로 따로 관리됨).
+    const PUSH_LAST_SEEN_KEY = 'push_history_last_seen';
+    async function updateSettingsBadge() {
+      const badge = document.getElementById('navSettingsBadge');
+      if (!badge) return;
+      const lastSeen = Number(localStorage.getItem(PUSH_LAST_SEEN_KEY) || 0);
+      const list = await getPushHistory(99);
+      const unreadCount = list.filter(item => item.time > lastSeen).length;
+      if (unreadCount > 0) {
+        badge.innerText = unreadCount > 9 ? '9+' : String(unreadCount);
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
     async function openPushHistoryModal() {
       const list = await getPushHistory();
       const container = document.getElementById('pushHistoryList');
@@ -1333,6 +1357,9 @@
         `).join('');
       }
       document.getElementById('pushHistoryModal').classList.add('active');
+      // 내역을 열어봤으니 지금 시각을 "마지막으로 확인함" 기준점으로 저장 → 배지 초기화
+      localStorage.setItem(PUSH_LAST_SEEN_KEY, String(Date.now()));
+      updateSettingsBadge();
     }
     function closePushHistoryModal() {
       document.getElementById('pushHistoryModal').classList.remove('active');
@@ -1431,6 +1458,7 @@
           const n = payload.notification || {};
           showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
           savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!');
+          updateSettingsBadge();
         });
       } catch(e) {
         console.error('푸시 알림 등록 실패:', e);
@@ -2722,6 +2750,7 @@
     loadMemoriesCache(); // 사이트를 열자마자 마지막으로 봤던 추억 사진첩을 0초로 먼저 그려준다
     renderMemories();
     updatePushButtonUI();
+    updateSettingsBadge();
 
     loadFromCloudSilently();
     setInterval(loadFromCloudSilently, 15000);
