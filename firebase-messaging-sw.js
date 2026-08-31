@@ -41,20 +41,23 @@ function openPushHistoryDB() {
   });
 }
 
-async function savePushHistory(title, body) {
+// type/targetId: 알림 내역에서 이 항목을 눌렀을 때 앱 안에서 어디로 이동할지 알려주는 정보.
+// index.html의 savePushHistory와 반드시 같은 구조로 저장해야 나중에 "알림 내역" 화면에서 같이 보인다.
+async function savePushHistory(title, body, type, targetId) {
   try {
     const db = await openPushHistoryDB();
     const tx = db.transaction(PUSH_HISTORY_STORE, 'readwrite');
-    tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, time: Date.now() });
+    tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, type: type || '', targetId: targetId || '', time: Date.now() });
   } catch(e) {}
 }
 
 // 사이트가 닫혀 있거나 다른 탭을 보고 있을 때(백그라운드) 도착하는 알림을 처리한다.
 messaging.onBackgroundMessage((payload) => {
   const notification = payload.notification || {};
+  const data = payload.data || {};
   const title = notification.title || '💖 정수와진하';
   const body = notification.body || '새로운 정보가 추가되었습니다. 확인해주세요!';
-  savePushHistory(title, body); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
+  savePushHistory(title, body, data.type, data.targetId); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
   const options = {
     body: body,
     tag: 'jeongsu-jinha-update', // 같은 태그면 알림이 쌓이지 않고 최신 것으로 교체됨
