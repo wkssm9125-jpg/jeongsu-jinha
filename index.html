@@ -464,13 +464,18 @@
     .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.55rem; padding: 0.5rem 0.2rem; }
     .chat-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-tertiary); font-size: 0.85rem; }
     .chat-bubble-row { display: flex; }
-    .chat-bubble-row.me { justify-content: flex-end; }
-    .chat-bubble-row.them { justify-content: flex-start; }
+    /* 보고 있는 사람 기준으로 "내가 보낸 말풍선"은 항상 왼쪽에 온다(요청에 따라 일반적인 채팅 UI와 반대) */
+    .chat-bubble-row.me { justify-content: flex-start; }
+    .chat-bubble-row.them { justify-content: flex-end; }
     .chat-bubble { max-width: 74%; padding: 0.6rem 0.9rem; border-radius: 16px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
-    .chat-bubble-row.me .chat-bubble { background: var(--accent-pink); color: #fff; border-bottom-right-radius: 4px; }
-    .chat-bubble-row.them .chat-bubble { background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text-primary); border-bottom-left-radius: 4px; }
+    .chat-bubble-row.me .chat-bubble { border-bottom-left-radius: 4px; }
+    .chat-bubble-row.them .chat-bubble { border-bottom-right-radius: 4px; }
+    /* 말풍선 색상은 보는 사람이 아니라 "누가 보냈는지"로 고정 — 정수=블루, 진하=핑크 (테마의 accent 색을 그대로 사용) */
+    .chat-bubble.sender-him { background: var(--accent-blue); color: #fff; }
+    .chat-bubble.sender-her { background: var(--accent-pink); color: #fff; }
     .chat-bubble-meta { font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.25rem; padding: 0 0.2rem; }
-    .chat-bubble-row.me .chat-bubble-meta { text-align: right; }
+    .chat-bubble-row.them .chat-bubble-meta { text-align: right; }
+    .chat-unread-badge { color: var(--accent-pink); font-weight: 700; }
     .chat-input-area { flex-shrink: 0; margin-top: 0.8rem; }
     .chat-input-row { display: flex; gap: 0.6rem; align-items: flex-end; }
     .chat-input-row .note-textarea { margin-bottom: 0; height: 46px; }
@@ -1573,7 +1578,7 @@
         await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'register_push_token', token: token, secret: APP_SECRET })
+          body: JSON.stringify({ action: 'register_push_token', token: token, sender: currentSender, secret: APP_SECRET })
         });
         localStorage.setItem('push_enabled', '1');
         localStorage.setItem('fcm_token', token);
@@ -1736,7 +1741,8 @@
         qnaAnswers: getAllQnAAnswers(),
         buckets: getBuckets(),
         notes: JSON.parse(localStorage.getItem("couple_notes") || "[]"),
-        chatMessages: JSON.parse(localStorage.getItem("couple_chat") || "[]")
+        chatMessages: JSON.parse(localStorage.getItem("couple_chat") || "[]"),
+        chatReadReceipts: JSON.parse(localStorage.getItem("couple_chat_read") || "{}")
       };
     }
 
@@ -1854,7 +1860,19 @@
           if (cloud.chatMessages) {
             localStorage.setItem("couple_chat", JSON.stringify(cloud.chatMessages));
             loadChatMessages();
+          }
+          if (cloud.chatReadReceipts) {
+            // 백엔드가 이미 기존 값과 병합(더 늦은 시각으로만 갱신)해서 보내주므로 그대로 덮어써도 안전하다
+            localStorage.setItem("couple_chat_read", JSON.stringify(cloud.chatReadReceipts));
+            loadChatReadReceipts();
+          }
+          if (cloud.chatMessages || cloud.chatReadReceipts) {
             renderChatMessages();
+            // 채팅 탭을 보고 있는 중에 새 메시지가 도착했다면 그 즉시 "읽음"으로 갱신해서 상대방의 "1"을 지워준다
+            const chatViewEl = document.getElementById('view-chat');
+            if (chatViewEl && chatViewEl.classList.contains('active')) {
+              markChatAsReadIfNeeded();
+            }
           }
 
           let qnaNeedsRerender = false;
@@ -2185,6 +2203,7 @@
         document.getElementById('view-chat').classList.add('active');
         document.getElementById('tabChat').classList.add('active');
         renderChatMessages();
+        markChatAsReadIfNeeded(); // 채팅 탭을 열어봤으니 지금까지 온 메시지는 "읽음" 처리
         startChatFastPoll();
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2858,6 +2877,16 @@
       if (chatHimBtn) chatHimBtn.classList.toggle("active", sender === "Him");
       if (chatHerBtn) chatHerBtn.classList.toggle("active", sender === "Her");
       renderChatMessages(); // 보내는 사람이 바뀌면 채팅 말풍선의 좌/우 정렬도 그 사람 기준으로 다시 그린다
+
+      // 이미 이 기기에서 푸시 알림을 켜둔 상태라면, 서버에 등록된 토큰의 "이 기기는 누구 것인지" 정보도
+      // 같이 갱신해준다 (그래야 "내가 보낸 채팅은 알림 안 오게"가 정확히 동작한다).
+      if (localStorage.getItem('push_enabled') === '1' && localStorage.getItem('fcm_token') && GAS_WEB_APP_URL) {
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'register_push_token', token: localStorage.getItem('fcm_token'), sender: currentSender, secret: APP_SECRET })
+        }).catch(() => {});
+      }
     }
 
     let editingNoteId = null; // 지금 수정 중인 쪽지의 id (없으면 새 쪽지 작성 모드)
@@ -2958,9 +2987,18 @@
     // ------------------------------------------------------------------
     let chatMessages = [];
     let chatFastPollInterval = null;
+    // 상대가 "어디까지 읽었는지" — { Him: 마지막으로 읽은 시각, Her: 마지막으로 읽은 시각 }
+    // 내가 보낸 메시지의 시각이 상대의 이 값보다 늦으면 아직 "1"(안 읽음)로 표시한다.
+    let chatReadReceipts = {};
 
     function loadChatMessages() {
       try { chatMessages = JSON.parse(localStorage.getItem('couple_chat') || '[]'); } catch(e) { chatMessages = []; }
+    }
+    function loadChatReadReceipts() {
+      try { chatReadReceipts = JSON.parse(localStorage.getItem('couple_chat_read') || '{}'); } catch(e) { chatReadReceipts = {}; }
+    }
+    function partnerOf(sender) {
+      return sender === 'Him' ? 'Her' : 'Him';
     }
 
     function renderChatMessages() {
@@ -2970,14 +3008,18 @@
         container.innerHTML = `<div class="chat-empty">아직 대화가 없어요.<br>💬 첫 메시지를 보내보세요!</div>`;
         return;
       }
+      const partnerReadAt = chatReadReceipts[partnerOf(currentSender)] || 0;
       container.innerHTML = chatMessages.map(msg => {
-        const isMe = msg.sender === currentSender;
+        const isMe = msg.sender === currentSender; // "나"는 위치(왼쪽)만 결정하고, 색상은 발신자로 고정된다
+        const senderColorClass = msg.sender === 'Him' ? 'sender-him' : 'sender-her';
         const timeStr = formatHistoryTime(msg.time);
+        // 내가 보낸 메시지인데 상대가 아직 이 시각까지 안 읽었으면 "1" 표시
+        const showUnread = isMe && (msg.time || 0) > partnerReadAt;
         return `
           <div class="chat-bubble-row ${isMe ? 'me' : 'them'}">
             <div>
-              <div class="chat-bubble">${escapeHtml(msg.text)}</div>
-              <div class="chat-bubble-meta">${timeStr}</div>
+              <div class="chat-bubble ${senderColorClass}">${escapeHtml(msg.text)}</div>
+              <div class="chat-bubble-meta">${showUnread ? '<span class="chat-unread-badge">1</span> ' : ''}${timeStr}</div>
             </div>
           </div>
         `;
@@ -2995,8 +3037,23 @@
       localStorage.setItem('couple_chat', JSON.stringify(chatMessages));
       input.value = '';
       renderChatMessages();
+      markChatAsReadIfNeeded(); // 내가 방금 보냈으니 나 스스로는 당연히 여기까지 읽은 상태
       const preview = text.length > 60 ? text.slice(0, 60) + '...' : text;
-      syncToCloud(null, 'chat_message', { chatPreview: preview });
+      // chatSender: 백엔드가 "본인이 보낸 메시지 알림은 본인 기기로 보내지 않도록" 걸러내는 데 쓴다
+      syncToCloud(null, 'chat_message', { chatPreview: preview, chatSender: currentSender });
+    }
+
+    // 채팅 탭을 보고 있을 때 새 메시지를 확인하면 "여기까지 읽음" 시각을 갱신해서 상대 화면의 "1"을 지워준다.
+    // 실제로 안 읽은 새 메시지가 있을 때만 동기화를 보내서 불필요한 저장 요청을 줄인다.
+    function markChatAsReadIfNeeded() {
+      if (chatMessages.length === 0) return;
+      const latestTime = chatMessages[chatMessages.length - 1].time || 0;
+      const mine = chatReadReceipts[currentSender] || 0;
+      if (latestTime > mine) {
+        chatReadReceipts[currentSender] = Date.now();
+        localStorage.setItem('couple_chat_read', JSON.stringify(chatReadReceipts));
+        syncToCloud(null);
+      }
     }
 
     // 채팅 탭을 보고 있는 동안에는 좀 더 자주 새로고침해서 실시간 대화처럼 느껴지게 한다.
@@ -3068,6 +3125,7 @@
     renderMemories();
     setSender(currentSender); // 기기에 저장된 "나는 정수/진하" 선택을 쪽지·채팅 버튼에 반영
     loadChatMessages();
+    loadChatReadReceipts();
     renderChatMessages();
     updatePushButtonUI();
     updateSettingsBadge();
