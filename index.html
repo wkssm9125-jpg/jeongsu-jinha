@@ -264,6 +264,7 @@
       padding: 0.15rem 0.5rem; border-radius: 999px; flex-shrink: 0;
     }
     .nav-settings-item.push-on .nav-settings-item-state { color: #fff; background: var(--accent-pink); }
+    .nav-settings-item.sound-on .nav-settings-item-state { color: #fff; background: var(--accent-pink); }
 
     .push-history-count-badge {
       display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
@@ -440,8 +441,40 @@
       padding: 0.9rem 1.1rem; border-left: 3px solid var(--accent-pink);
     }
     .note-item.blue { border-left-color: var(--accent-blue); }
-    .note-item-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.3rem; }
-    .note-item-text { font-size: 0.9rem; color: var(--text-primary); }
+    .note-item-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.3rem; gap: 0.5rem; }
+    .note-item-meta-left { display: flex; align-items: center; gap: 0.5rem; overflow: hidden; }
+    .note-item-meta-left span:first-child { white-space: nowrap; }
+    .note-item-edited-tag { font-size: 0.68rem; color: var(--text-tertiary); opacity: 0.7; white-space: nowrap; }
+    .note-item-text { font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+    .note-item-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    .note-item-actions button {
+      background: transparent; border: none; color: var(--text-tertiary); cursor: pointer;
+      font-size: 0.8rem; padding: 0.1rem 0.3rem; border-radius: 6px; transition: 0.15s;
+    }
+    .note-item-actions button:hover { color: var(--accent-pink); background: var(--bg-card-hover); }
+    .note-editor-actions { display: flex; gap: 0.5rem; align-items: center; }
+    .btn-cancel-edit-note {
+      background: transparent; border: 1px solid var(--border-card); color: var(--text-secondary);
+      border-radius: 999px; font-size: 0.82rem; padding: 0.6rem 1.1rem; cursor: pointer;
+    }
+
+    /* CHAT VIEW */
+    .chat-container { max-width: 760px; margin: 0 auto; padding: clamp(1.6rem, 4vh, 2.8rem) clamp(1rem, 3vw, 1.5rem) 2rem; display: flex; flex-direction: column; height: calc(100vh - 50px); box-sizing: border-box; }
+    .chat-header { flex-shrink: 0; margin-bottom: 1rem; }
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.55rem; padding: 0.5rem 0.2rem; }
+    .chat-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-tertiary); font-size: 0.85rem; }
+    .chat-bubble-row { display: flex; }
+    .chat-bubble-row.me { justify-content: flex-end; }
+    .chat-bubble-row.them { justify-content: flex-start; }
+    .chat-bubble { max-width: 74%; padding: 0.6rem 0.9rem; border-radius: 16px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
+    .chat-bubble-row.me .chat-bubble { background: var(--accent-pink); color: #fff; border-bottom-right-radius: 4px; }
+    .chat-bubble-row.them .chat-bubble { background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text-primary); border-bottom-left-radius: 4px; }
+    .chat-bubble-meta { font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.25rem; padding: 0 0.2rem; }
+    .chat-bubble-row.me .chat-bubble-meta { text-align: right; }
+    .chat-input-area { flex-shrink: 0; margin-top: 0.8rem; }
+    .chat-input-row { display: flex; gap: 0.6rem; align-items: flex-end; }
+    .chat-input-row .note-textarea { margin-bottom: 0; height: 46px; }
+    .chat-input-row .btn-save-note { flex-shrink: 0; }
 
     /* OUR MEMORIES VIEW */
     .memories-container { max-width: 1120px; margin: 0 auto; padding: clamp(2rem, 4vh, 3.5rem) clamp(1rem, 3vw, 1.5rem) 5rem; }
@@ -715,7 +748,9 @@
     @media (max-width: 640px) {
       nav.apple-nav { padding: 0 0.7rem; gap: 0.35rem; }
       .nav-brand { font-size: 0.78rem; gap: 0.3rem; }
-      .nav-links { gap: 0.25rem; }
+      /* 탭이 3개(홈/추억/채팅)로 늘어나도 화면이 깨지지 않도록, 넘치면 가로로 살짝 스크롤되게 한다 */
+      .nav-links { gap: 0.25rem; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+      .nav-links::-webkit-scrollbar { display: none; }
       .nav-links li { padding: 0.28rem 0.5rem; font-size: 0.74rem; }
       .nav-right-box { gap: 0.3rem; }
       .nav-upload-badge, .sync-status-badge { font-size: 0.66rem; padding: 0.2rem 0.5rem; max-width: 30vw; }
@@ -761,6 +796,7 @@
     <ul class="nav-links">
       <li class="page-tab-btn active" id="tabHome" onclick="switchPage('home')">홈</li>
       <li class="page-tab-btn" id="tabMemories" onclick="switchPage('memories')">우리들의 추억</li>
+      <li class="page-tab-btn" id="tabChat" onclick="switchPage('chat')">💬 채팅</li>
       <li class="sub-nav" onclick="scrollToSection('anniversaries')">기념일</li>
       <li class="sub-nav" onclick="scrollToSection('qna')">문답</li>
       <li class="sub-nav" onclick="scrollToSection('bucket')">버킷</li>
@@ -775,6 +811,10 @@
           <div class="nav-settings-item" id="navSettingsPush" onclick="togglePushNotifications(); closeSettingsMenu();">
             <span>🔔 푸시 알림</span>
             <span class="nav-settings-item-state" id="navSettingsPushState">끔</span>
+          </div>
+          <div class="nav-settings-item" id="navSettingsSound" onclick="toggleNotificationSound(); closeSettingsMenu();">
+            <span>🔊 알림음</span>
+            <span class="nav-settings-item-state" id="navSettingsSoundState">켬</span>
           </div>
           <div class="nav-settings-item" onclick="openThemeModal(); closeSettingsMenu();">
             <span>🎨 테마 변경</span>
@@ -905,7 +945,10 @@
           <button class="sender-btn" id="btnSenderHer" onclick="setSender('Her')">👩 그녀가 남김</button>
         </div>
         <textarea id="noteInput" class="note-textarea" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..."></textarea>
-        <button class="btn-save-note" onclick="saveNote()">쪽지 남기기</button>
+        <div class="note-editor-actions">
+          <button class="btn-save-note" id="btnSaveNote" onclick="saveNote()">쪽지 남기기</button>
+          <button class="btn-cancel-edit-note" id="btnCancelEditNote" onclick="cancelEditNote()" style="display:none;">취소</button>
+        </div>
         <div class="notes-list" id="notesList"></div>
       </div>
     </section>
@@ -934,6 +977,27 @@
       </div>
 
       <div class="memories-grid" id="memoriesGrid"></div>
+    </div>
+  </div>
+
+  <!-- VIEW 3: CHAT -->
+  <div id="view-chat" class="page-view">
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="section-eyebrow">Just The Two Of Us</div>
+        <h2 class="section-title">실시간 채팅</h2>
+        <div class="note-sender-toggle" style="margin-top: 0.6rem;">
+          <button class="sender-btn active" id="btnChatSenderHim" onclick="setSender('Him')">👨 정수로 보내기</button>
+          <button class="sender-btn" id="btnChatSenderHer" onclick="setSender('Her')">👩 진하로 보내기</button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessagesList"></div>
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <textarea id="chatInput" class="note-textarea" placeholder="메시지를 입력하세요..." onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChatMessage(); }"></textarea>
+          <button class="btn-save-note" onclick="sendChatMessage()">전송</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1428,6 +1492,8 @@
       } else if (type === 'main_photo') {
         switchPage('home');
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (type === 'chat') {
+        switchPage('chat');
       }
     }
 
@@ -1519,6 +1585,7 @@
           const n = payload.notification || {};
           const d = payload.data || {};
           showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
+          playNotificationSound();
           savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!', d.type, d.targetId);
           updateSettingsBadge();
         });
@@ -1668,7 +1735,8 @@
         qnaIndex: localStorage.getItem("qna_index") || "0",
         qnaAnswers: getAllQnAAnswers(),
         buckets: getBuckets(),
-        notes: JSON.parse(localStorage.getItem("couple_notes") || "[]")
+        notes: JSON.parse(localStorage.getItem("couple_notes") || "[]"),
+        chatMessages: JSON.parse(localStorage.getItem("couple_chat") || "[]")
       };
     }
 
@@ -1684,7 +1752,7 @@
     let syncTimeout = null;
     // notifyType: 텔레그램 알림을 보낼 만큼 "의미 있는 새 콘텐츠"일 때만 지정해서 넘긴다
     // (예: 'note_added', 'bucket_added'). 테마/무드처럼 사소한 자동저장은 생략해서 알림이 시끄럽지 않게 한다.
-    function syncToCloud(immediatePayload = null, notifyType = null) {
+    function syncToCloud(immediatePayload = null, notifyType = null, extraFields = null) {
       setSyncStatus("syncing", "저장 중...");
       clearTimeout(syncTimeout);
 
@@ -1695,6 +1763,7 @@
           if (!payload.appState) payload.appState = getFullAppState();
           payload.secret = APP_SECRET;
           if (notifyType) payload.notifyType = notifyType;
+          if (extraFields) Object.assign(payload, extraFields);
 
           const res = await fetch(GAS_WEB_APP_URL, {
             method: 'POST',
@@ -1721,9 +1790,10 @@
 
     function buildCloudSignature(cloud) {
       const memSig = (cloud.memories || []).map(m => `${m.id}|${m.date}|${(m.desc || '').length}|${(m.media || []).length}`).sort().join(',');
-      const notesSig = (cloud.notes || []).map(n => `${n.date}|${n.sender}|${(n.text || '').length}`).join(',');
+      const notesSig = (cloud.notes || []).map(n => `${n.id || n.date}|${n.sender}|${(n.text || '').length}|${n.edited ? 1 : 0}`).join(',');
       const bucketsSig = (cloud.buckets || []).map(b => `${b.text}|${b.done}`).join(',');
-      return [cloud.mainPhoto ? '1' : '0', cloud.mood || '', cloud.anniversary || '', memSig, notesSig, bucketsSig, JSON.stringify(cloud.qnaAnswers || {}), cloud.qnaIndex || ''].join('::');
+      const chatSig = (cloud.chatMessages || []).map(c => `${c.id}|${(c.text || '').length}`).join(',');
+      return [cloud.mainPhoto ? '1' : '0', cloud.mood || '', cloud.anniversary || '', memSig, notesSig, bucketsSig, chatSig, JSON.stringify(cloud.qnaAnswers || {}), cloud.qnaIndex || ''].join('::');
     }
 
     function detectAndNotifyChange(cloud) {
@@ -1737,6 +1807,7 @@
         const recentlyActedLocally = (Date.now() - lastLocalActionTime) < NOTIFY_SUPPRESS_MS;
         if (!recentlyActedLocally) {
           showToast('새로운 정보가 추가되었습니다. 확인해주세요! 🔔', '🔔', 5000);
+          playNotificationSound();
         }
       }
     }
@@ -1778,6 +1849,12 @@
           if (cloud.notes) {
             localStorage.setItem("couple_notes", JSON.stringify(cloud.notes));
             loadNotes();
+          }
+
+          if (cloud.chatMessages) {
+            localStorage.setItem("couple_chat", JSON.stringify(cloud.chatMessages));
+            loadChatMessages();
+            renderChatMessages();
           }
 
           let qnaNeedsRerender = false;
@@ -2096,6 +2173,7 @@
     function switchPage(page) {
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.page-tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (page !== 'chat') stopChatFastPoll(); // 채팅 탭을 벗어나면 5초 빠른 새로고침을 끄고 원래 15초 주기로 돌아간다
       if (page === 'home') {
         document.getElementById('view-home').classList.add('active');
         document.getElementById('tabHome').classList.add('active');
@@ -2103,6 +2181,11 @@
         document.getElementById('view-memories').classList.add('active');
         document.getElementById('tabMemories').classList.add('active');
         renderMemories();
+      } else if (page === 'chat') {
+        document.getElementById('view-chat').classList.add('active');
+        document.getElementById('tabChat').classList.add('active');
+        renderChatMessages();
+        startChatFastPoll();
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -2761,14 +2844,33 @@
       saveBuckets(list);
     }
 
-    let currentSender = "Him";
+    // "나는 정수/진하 중 누구인지"는 쪽지·채팅에서 공통으로 쓰는 정체성이라 기기에 저장해두고 계속 기억한다.
+    let currentSender = localStorage.getItem('couple_sender') || "Him";
     function setSender(sender) {
       currentSender = sender;
-      document.getElementById("btnSenderHim").classList.toggle("active", sender === "Him");
-      document.getElementById("btnSenderHer").classList.toggle("active", sender === "Her");
+      localStorage.setItem('couple_sender', sender);
+      const himBtn = document.getElementById("btnSenderHim");
+      const herBtn = document.getElementById("btnSenderHer");
+      if (himBtn) himBtn.classList.toggle("active", sender === "Him");
+      if (herBtn) herBtn.classList.toggle("active", sender === "Her");
+      const chatHimBtn = document.getElementById("btnChatSenderHim");
+      const chatHerBtn = document.getElementById("btnChatSenderHer");
+      if (chatHimBtn) chatHimBtn.classList.toggle("active", sender === "Him");
+      if (chatHerBtn) chatHerBtn.classList.toggle("active", sender === "Her");
+      renderChatMessages(); // 보내는 사람이 바뀌면 채팅 말풍선의 좌/우 정렬도 그 사람 기준으로 다시 그린다
     }
+
+    let editingNoteId = null; // 지금 수정 중인 쪽지의 id (없으면 새 쪽지 작성 모드)
+
     function loadNotes() {
-      const saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
+      let saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
+      // 예전에 id 없이 저장된 쪽지들(수정/삭제 기능 추가 이전)은 여기서 한 번만 id를 붙여준다.
+      let migrated = false;
+      saved = saved.map(n => {
+        if (!n.id) { migrated = true; return { ...n, id: 'n' + Date.now() + Math.random().toString(36).slice(2, 7) }; }
+        return n;
+      });
+      if (migrated) localStorage.setItem('couple_notes', JSON.stringify(saved));
       if (saved.length === 0) {
         document.getElementById('notesList').innerHTML = `<div style="text-align: center; padding: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">아직 남겨진 쪽지가 없습니다. 첫 쪽지를 남겨보세요!</div>`;
         return;
@@ -2776,8 +2878,15 @@
       document.getElementById('notesList').innerHTML = saved.map(item => `
         <div class="note-item ${item.sender === 'Her' ? '' : 'blue'}">
           <div class="note-item-meta">
-            <span>${item.sender === 'Her' ? '👩 그녀가 남김' : '👨 그가 남김'}</span>
-            <span>${escapeHtml(item.date)}</span>
+            <div class="note-item-meta-left">
+              <span>${item.sender === 'Her' ? '👩 그녀가 남김' : '👨 그가 남김'}</span>
+              <span>${escapeHtml(item.date)}</span>
+              ${item.edited ? '<span class="note-item-edited-tag">(수정됨)</span>' : ''}
+            </div>
+            <div class="note-item-actions">
+              <button onclick="editNote('${item.id}')" title="수정">✏️</button>
+              <button onclick="deleteNote('${item.id}')" title="삭제">🗑</button>
+            </div>
           </div>
           <div class="note-item-text">${escapeHtml(item.text)}</div>
         </div>
@@ -2791,12 +2900,158 @@
       const saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
       const now = new Date();
       const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      saved.unshift({ text, sender: currentSender, date: dateStr });
+
+      if (editingNoteId) {
+        // 수정 모드: 기존 쪽지 내용만 바꾸고 새로 만들지 않는다
+        const idx = saved.findIndex(n => n.id === editingNoteId);
+        if (idx > -1) {
+          saved[idx].text = text;
+          saved[idx].edited = true;
+        }
+        localStorage.setItem('couple_notes', JSON.stringify(saved));
+        cancelEditNote();
+        loadNotes();
+        syncToCloud(null); // 수정은 알림 스팸 방지를 위해 별도 알림은 보내지 않는다
+        showToast('쪽지가 수정되었습니다!', '✏️');
+      } else {
+        const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 7);
+        saved.unshift({ id, text, sender: currentSender, date: dateStr });
+        localStorage.setItem('couple_notes', JSON.stringify(saved));
+        input.value = '';
+        loadNotes();
+        syncToCloud(null, 'note_added');
+        showToast('쪽지가 성공적으로 남겨졌습니다!', '💌');
+      }
+    }
+    function editNote(id) {
+      const saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
+      const item = saved.find(n => n.id === id);
+      if (!item) return;
+      editingNoteId = id;
+      document.getElementById('noteInput').value = item.text;
+      document.getElementById('noteInput').focus();
+      document.getElementById('btnSaveNote').innerText = '수정 완료';
+      document.getElementById('btnCancelEditNote').style.display = 'inline-block';
+      document.getElementById('noteInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function cancelEditNote() {
+      editingNoteId = null;
+      document.getElementById('noteInput').value = '';
+      document.getElementById('btnSaveNote').innerText = '쪽지 남기기';
+      document.getElementById('btnCancelEditNote').style.display = 'none';
+    }
+    function deleteNote(id) {
+      if (!confirm('이 쪽지를 삭제할까요?')) return;
+      registerLocalAction();
+      let saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
+      saved = saved.filter(n => n.id !== id);
       localStorage.setItem('couple_notes', JSON.stringify(saved));
-      input.value = '';
+      if (editingNoteId === id) cancelEditNote();
       loadNotes();
-      syncToCloud(null, 'note_added');
-      showToast('쪽지가 성공적으로 남겨졌습니다!', '💌');
+      syncToCloud(null);
+      showToast('쪽지를 삭제했습니다.', '🗑');
+    }
+
+    // ------------------------------------------------------------------
+    // 채팅 — 쪽지가 "손편지" 느낌이라면 이쪽은 실시간에 가까운 대화용.
+    // 같은 클라우드 동기화 파이프라인(appState)에 chatMessages 배열로 함께 실려서 저장/전송된다.
+    // ------------------------------------------------------------------
+    let chatMessages = [];
+    let chatFastPollInterval = null;
+
+    function loadChatMessages() {
+      try { chatMessages = JSON.parse(localStorage.getItem('couple_chat') || '[]'); } catch(e) { chatMessages = []; }
+    }
+
+    function renderChatMessages() {
+      const container = document.getElementById('chatMessagesList');
+      if (!container) return;
+      if (chatMessages.length === 0) {
+        container.innerHTML = `<div class="chat-empty">아직 대화가 없어요.<br>💬 첫 메시지를 보내보세요!</div>`;
+        return;
+      }
+      container.innerHTML = chatMessages.map(msg => {
+        const isMe = msg.sender === currentSender;
+        const timeStr = formatHistoryTime(msg.time);
+        return `
+          <div class="chat-bubble-row ${isMe ? 'me' : 'them'}">
+            <div>
+              <div class="chat-bubble">${escapeHtml(msg.text)}</div>
+              <div class="chat-bubble-meta">${timeStr}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      registerLocalAction();
+      const msg = { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 7), sender: currentSender, text, time: Date.now() };
+      chatMessages.push(msg);
+      localStorage.setItem('couple_chat', JSON.stringify(chatMessages));
+      input.value = '';
+      renderChatMessages();
+      const preview = text.length > 60 ? text.slice(0, 60) + '...' : text;
+      syncToCloud(null, 'chat_message', { chatPreview: preview });
+    }
+
+    // 채팅 탭을 보고 있는 동안에는 좀 더 자주 새로고침해서 실시간 대화처럼 느껴지게 한다.
+    // (다른 탭에서는 기존처럼 15초 주기 — 서버 부담을 늘리지 않기 위해 채팅 탭 밖에서는 끈다)
+    function startChatFastPoll() {
+      stopChatFastPoll();
+      chatFastPollInterval = setInterval(loadFromCloudSilently, 5000);
+    }
+    function stopChatFastPoll() {
+      if (chatFastPollInterval) { clearInterval(chatFastPollInterval); chatFastPollInterval = null; }
+    }
+
+    // ------------------------------------------------------------------
+    // 알림음 — 사이트를 열어둔 상태(포그라운드)에서 새 알림이 도착했을 때 짧은 차임벨을 울려준다.
+    // ⚠️ 사이트가 닫혀 있을 때(백그라운드 푸시)의 알림음은 폰 OS가 기본 알림음으로 자동 재생하는 것이라
+    //    웹 기술로는 그 소리 자체를 바꿀 수 없다. 이 설정은 "사이트를 보고 있을 때"만 적용된다.
+    // ------------------------------------------------------------------
+    function isNotificationSoundEnabled() {
+      return localStorage.getItem('notif_sound_enabled') !== '0'; // 기본값 켬
+    }
+    function toggleNotificationSound() {
+      const enabled = !isNotificationSoundEnabled();
+      localStorage.setItem('notif_sound_enabled', enabled ? '1' : '0');
+      updateNotificationSoundUI();
+      if (enabled) playNotificationSound();
+      showToast(enabled ? '알림음이 켜졌습니다.' : '알림음이 꺼졌습니다.', '🔊');
+    }
+    function updateNotificationSoundUI() {
+      const item = document.getElementById('navSettingsSound');
+      const state = document.getElementById('navSettingsSoundState');
+      if (!item || !state) return;
+      const enabled = isNotificationSoundEnabled();
+      item.classList.toggle('sound-on', enabled);
+      state.innerText = enabled ? '켬' : '끔';
+    }
+    function playNotificationSound() {
+      if (!isNotificationSoundEnabled()) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        [[880, 0], [1174.66, 0.1]].forEach(([freq, delay]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.22, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.4);
+        });
+        setTimeout(() => ctx.close(), 900);
+      } catch(e) {}
     }
 
     // 초기 실행
@@ -2811,8 +3066,12 @@
     loadNotes();
     loadMemoriesCache(); // 사이트를 열자마자 마지막으로 봤던 추억 사진첩을 0초로 먼저 그려준다
     renderMemories();
+    setSender(currentSender); // 기기에 저장된 "나는 정수/진하" 선택을 쪽지·채팅 버튼에 반영
+    loadChatMessages();
+    renderChatMessages();
     updatePushButtonUI();
     updateSettingsBadge();
+    updateNotificationSoundUI();
 
     loadFromCloudSilently();
     setInterval(loadFromCloudSilently, 15000);
