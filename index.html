@@ -265,10 +265,21 @@
     }
     .nav-settings-item.push-on .nav-settings-item-state { color: #fff; background: var(--accent-pink); }
 
+    .push-history-count-badge {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
+      padding: 0 6px; margin-left: 0.35rem; background: var(--accent-pink); color: #fff;
+      font-size: 0.72rem; font-weight: 700; border-radius: 999px; vertical-align: middle;
+    }
     .push-history-list { max-height: 50vh; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 0.6rem; margin: 0.5rem 0; }
     .push-history-item {
       background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px;
-      padding: 0.7rem 0.85rem;
+      padding: 0.7rem 0.85rem; position: relative;
+    }
+    .push-history-item.clickable { cursor: pointer; transition: 0.15s; padding-right: 2.1rem; }
+    .push-history-item.clickable:hover { background: var(--bg-card-hover); border-color: var(--accent-pink); }
+    .push-history-item.clickable::after {
+      content: '›'; position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
+      font-size: 1.3rem; font-weight: 700; color: var(--text-tertiary);
     }
     .push-history-item-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
     .push-history-item-body { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.35rem; }
@@ -1212,7 +1223,7 @@
 
   <div class="modal-overlay" id="pushHistoryModal" onclick="closePushHistoryModal()">
     <div class="apple-modal" onclick="event.stopPropagation()">
-      <h3 class="modal-title">🕘 알림 내역</h3>
+      <h3 class="modal-title">🕘 알림 내역<span id="pushHistoryCount" class="push-history-count-badge" style="display:none;"></span></h3>
       <p class="modal-desc">이 기기로 받은 푸시 알림 기록이에요. 사이트가 닫혀 있을 때 온 알림도 여기서 다시 볼 수 있어요.</p>
       <div id="pushHistoryList" class="push-history-list"></div>
       <div class="modal-buttons">
@@ -1281,11 +1292,14 @@
       });
     }
 
-    async function savePushHistory(title, body) {
+    // type/targetId: 알림 내역에서 항목을 눌렀을 때 어디로 이동할지 알려주는 정보.
+    // type: 'memory'(추억) | 'note'(쪽지) | 'bucket'(버킷리스트) | 'main_photo'(대표사진) | 'delete'(삭제됨)
+    // targetId: 'memory' 타입일 때만 사용, GLOBAL_MEMORIES 안의 item.id("drive-폴더ID")와 동일한 값
+    async function savePushHistory(title, body, type, targetId) {
       try {
         const db = await openPushHistoryDB();
         const tx = db.transaction(PUSH_HISTORY_STORE, 'readwrite');
-        tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, time: Date.now() });
+        tx.objectStore(PUSH_HISTORY_STORE).add({ title, body, type: type || '', targetId: targetId || '', time: Date.now() });
       } catch(e) {}
     }
 
@@ -1342,19 +1356,35 @@
       }
     }
 
+    let PUSH_HISTORY_CACHE = []; // 알림 내역 목록을 눌렀을 때 인덱스로 다시 찾아쓰기 위한 캐시
+
     async function openPushHistoryModal() {
       const list = await getPushHistory();
+      PUSH_HISTORY_CACHE = list;
       const container = document.getElementById('pushHistoryList');
+      const countBadge = document.getElementById('pushHistoryCount');
+      if (countBadge) {
+        if (list.length > 0) {
+          countBadge.innerText = list.length > 99 ? '99+' : String(list.length);
+          countBadge.style.display = 'inline-flex';
+        } else {
+          countBadge.style.display = 'none';
+        }
+      }
       if (list.length === 0) {
         container.innerHTML = `<div class="push-history-empty">아직 받은 알림이 없어요.<br>🔔 알림을 켜두면 여기에 기록이 쌓여요.</div>`;
       } else {
-        container.innerHTML = list.map(item => `
-          <div class="push-history-item">
+        container.innerHTML = list.map((item, idx) => {
+          // 이동할 곳이 있는 알림(추억/쪽지/버킷/대표사진)만 눌러서 이동 가능하게 한다.
+          const clickable = !!item.type && item.type !== 'delete';
+          return `
+          <div class="push-history-item${clickable ? ' clickable' : ''}"${clickable ? ` onclick="goToPushHistoryItem(${idx})"` : ''}>
             <div class="push-history-item-title">${escapeHtml(item.title || '')}</div>
             <div class="push-history-item-body">${escapeHtml(item.body || '')}</div>
             <div class="push-history-item-time">${formatHistoryTime(item.time)}</div>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
       document.getElementById('pushHistoryModal').classList.add('active');
       // 내역을 열어봤으니 지금 시각을 "마지막으로 확인함" 기준점으로 저장 → 배지 초기화
@@ -1368,6 +1398,37 @@
       if (!confirm('알림 내역을 전부 지울까요?')) return;
       await clearPushHistoryDB();
       openPushHistoryModal();
+    }
+
+    // 알림 내역에서 항목을 눌렀을 때 그 알림이 알려준 실제 내용(추억/쪽지/버킷 등)으로 이동한다.
+    function goToPushHistoryItem(idx) {
+      const item = PUSH_HISTORY_CACHE[idx];
+      if (!item) return;
+      closePushHistoryModal();
+      goToPushTarget(item.type, item.targetId);
+    }
+
+    async function goToPushTarget(type, targetId) {
+      if (type === 'memory' && targetId) {
+        showToast('추억으로 이동 중...', '📷', 1500);
+        await loadFromCloudSilently(); // 그새 새로 생겼거나 바뀐 추억까지 최신 상태로 받아온다
+        switchPage('memories');
+        setTimeout(() => {
+          const found = GLOBAL_MEMORIES.find(m => m.id === targetId);
+          if (found) {
+            openLightbox(targetId);
+          } else {
+            showToast('해당 추억을 찾을 수 없어요. 삭제되었을 수 있어요.', '⚠️');
+          }
+        }, 350);
+      } else if (type === 'note') {
+        scrollToSection('notes');
+      } else if (type === 'bucket') {
+        scrollToSection('bucket');
+      } else if (type === 'main_photo') {
+        switchPage('home');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
 
     function updatePushButtonUI() {
@@ -1456,8 +1517,9 @@
         // 사이트를 열어놓고 있는 동안(포그라운드)에도 알림 내용을 토스트로 보여준다
         fcmMessagingInstance.onMessage((payload) => {
           const n = payload.notification || {};
+          const d = payload.data || {};
           showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
-          savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!');
+          savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!', d.type, d.targetId);
           updateSettingsBadge();
         });
       } catch(e) {
