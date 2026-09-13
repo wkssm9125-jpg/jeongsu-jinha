@@ -961,16 +961,16 @@ footer.apple-footer { display:none; }
   .sidebar-foot { margin-top:auto; padding:12px 13px 4px; font-size:11px; color:var(--text-tertiary); }
 
   /* 홈: 2단 대시보드 (기존 섹션 순서·id 그대로, 배치만 그리드로 변경) */
-  #view-home {
+  #view-home.active {
     display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:0;
     max-width:1100px; margin:0 auto; padding:0 32px;
   }
-  #view-home > section.hero, #view-home > .mood-bar { grid-column:1 / -1; max-width:none; margin:0; }
-  #view-home section.app-section { max-width:none; margin:0; padding:22px 0 0; }
-  #view-home #anniversaries { grid-column:1; }
-  #view-home #qna { grid-column:2; }
-  #view-home #bucket { grid-column:1; }
-  #view-home #notes { grid-column:2; }
+  #view-home.active > section.hero, #view-home.active > .mood-bar { grid-column:1 / -1; max-width:none; margin:0; }
+  #view-home.active section.app-section { max-width:none; margin:0; padding:22px 0 0; }
+  #view-home.active #anniversaries { grid-column:1; }
+  #view-home.active #qna { grid-column:2; }
+  #view-home.active #bucket { grid-column:1; }
+  #view-home.active #notes { grid-column:2; }
 
   section.hero { max-width:1100px; padding:26px 32px 4px; }
   .mood-bar { max-width:1100px; padding:16px 32px 0; }
