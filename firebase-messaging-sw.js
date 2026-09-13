@@ -66,14 +66,20 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(title, options);
 });
 
-// 알림을 눌렀을 때 사이트(또는 관련 링크)를 열어준다.
+// 알림을 눌렀을 때 사이트를 열어주되, 그냥 홈으로 가는 게 아니라 이 알림이 알려준 항목(추억/쪽지/채팅 등)으로
+// 바로 이동하도록 targetUrl에 "?ptype=...&ptarget=..." 이 실려 있다 (code.gs가 만들어 보냄).
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const targetUrl = (event.notification.data && event.notification.data.url) || './';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
-        if ('focus' in client) return client.focus();
+        if ('focus' in client) {
+          client.focus();
+          // 이미 열려 있던 탭이면 그 탭을 새 이동 정보가 담긴 주소로 새로고침해서 해당 항목을 열어준다
+          if ('navigate' in client) return client.navigate(targetUrl);
+          return;
+        }
       }
       if (clients.openWindow) return clients.openWindow(targetUrl);
     })
