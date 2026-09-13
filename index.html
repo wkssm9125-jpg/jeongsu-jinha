@@ -29,6 +29,9 @@
       --modal-bg: #1c1c1e;
       --nav-bg: rgba(0, 0, 0, 0.75);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(255, 55, 95, 0.15) 0%, transparent 65%);
+      /* 채팅 풍선 전용 색상: 테마와 상관없이 두 사람 색이 항상 뚜렷하게 구분되도록 별도 지정 */
+      --chat-him: #2997ff;
+      --chat-her: #ff375f;
     }
 
     [data-theme="rose"] {
@@ -48,6 +51,8 @@
       --modal-bg: #1f0d14;
       --nav-bg: rgba(18, 7, 11, 0.8);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(255, 45, 112, 0.2) 0%, transparent 65%);
+      --chat-him: #5ac8fa;
+      --chat-her: #ff2d70;
     }
 
     [data-theme="lavender"] {
@@ -67,6 +72,8 @@
       --modal-bg: #151026;
       --nav-bg: rgba(9, 7, 20, 0.8);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(191, 90, 242, 0.2) 0%, transparent 65%);
+      --chat-him: #5ac8fa;
+      --chat-her: #bf5af2;
     }
 
     [data-theme="ocean"] {
@@ -86,6 +93,8 @@
       --modal-bg: #0b192c;
       --nav-bg: rgba(4, 12, 23, 0.8);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(0, 198, 255, 0.2) 0%, transparent 65%);
+      --chat-him: #00c6ff;
+      --chat-her: #ff6482;
     }
 
     [data-theme="forest"] {
@@ -105,6 +114,8 @@
       --modal-bg: #0c2414;
       --nav-bg: rgba(5, 18, 9, 0.8);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(52, 199, 89, 0.2) 0%, transparent 65%);
+      --chat-him: #34c759;
+      --chat-her: #ff6482;
     }
 
     [data-theme="sunset"] {
@@ -124,6 +135,8 @@
       --modal-bg: #21130a;
       --nav-bg: rgba(18, 9, 4, 0.8);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(255, 149, 0, 0.2) 0%, transparent 65%);
+      --chat-him: #ff9500;
+      --chat-her: #ff2d70;
     }
 
     [data-theme="light"] {
@@ -143,6 +156,8 @@
       --modal-bg: #ffffff;
       --nav-bg: rgba(245, 245, 247, 0.85);
       --hero-radial: radial-gradient(circle at 50% 20%, rgba(255, 45, 85, 0.12) 0%, transparent 65%);
+      --chat-him: #0071e3;
+      --chat-her: #ff2d55;
     }
 
     :root {
@@ -461,7 +476,9 @@
     /* CHAT VIEW */
     .chat-container { max-width: 760px; margin: 0 auto; padding: clamp(1.6rem, 4vh, 2.8rem) clamp(1rem, 3vw, 1.5rem) 2rem; display: flex; flex-direction: column; height: calc(100vh - 50px); box-sizing: border-box; }
     .chat-header { flex-shrink: 0; margin-bottom: 1rem; }
-    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.55rem; padding: 0.5rem 0.2rem; }
+    /* min-height:0이 없으면 플렉스 자식이 내용 크기만큼 늘어나 버려서, 채팅창 안이 아니라
+       페이지 전체가 스크롤되는 문제가 있었다(플렉스박스의 잘 알려진 함정) */
+    .chat-messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.55rem; padding: 0.5rem 0.2rem; }
     .chat-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-tertiary); font-size: 0.85rem; }
     .chat-bubble-row { display: flex; }
     /* 보고 있는 사람 기준으로 "내가 보낸 말풍선"은 항상 왼쪽에 온다(요청에 따라 일반적인 채팅 UI와 반대) */
@@ -471,8 +488,8 @@
     .chat-bubble-row.me .chat-bubble { border-bottom-left-radius: 4px; }
     .chat-bubble-row.them .chat-bubble { border-bottom-right-radius: 4px; }
     /* 말풍선 색상은 보는 사람이 아니라 "누가 보냈는지"로 고정 — 정수=블루, 진하=핑크 (테마의 accent 색을 그대로 사용) */
-    .chat-bubble.sender-him { background: var(--accent-blue); color: #fff; }
-    .chat-bubble.sender-her { background: var(--accent-pink); color: #fff; }
+    .chat-bubble.sender-him { background: var(--chat-him); color: #fff; }
+    .chat-bubble.sender-her { background: var(--chat-her); color: #fff; }
     .chat-bubble-meta { font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.25rem; padding: 0 0.2rem; }
     .chat-bubble-row.them .chat-bubble-meta { text-align: right; }
     .chat-unread-badge { color: var(--accent-pink); font-weight: 700; }
@@ -524,6 +541,11 @@
     .memory-img-wrapper { width: 100%; aspect-ratio: 4/3; background: #1a1a1c; overflow: hidden; position: relative; }
     .memory-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
     .memory-card:hover .memory-img { transform: scale(1.05); }
+    .memory-img-placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.35rem; color: var(--text-tertiary); font-size: 1.8rem;
+    }
+    .memory-img-placeholder span { font-size: 0.75rem; }
     .media-play-badge {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 46px; height: 46px; border-radius: 50%; background: rgba(0, 0, 0, 0.55);
@@ -646,6 +668,11 @@
     }
     .lightbox-slider-img { width: 100%; max-height: 420px; object-fit: contain; display: block; }
     .lightbox-video-frame { width: 100%; height: 420px; border: none; display: block; background: #000; }
+    .lightbox-no-media {
+      width: 100%; height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.5rem; color: var(--text-tertiary); font-size: 2rem;
+    }
+    .lightbox-no-media span { font-size: 0.85rem; }
     .slider-arrow-btn {
       position: absolute; top: 50%; transform: translateY(-50%);
       background: rgba(0, 0, 0, 0.6); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1189,6 +1216,7 @@
         <button class="slider-arrow-btn prev" id="sliderPrevBtn" onclick="slidePhoto(-1)">‹</button>
         <img id="lightboxImg" class="lightbox-slider-img" src="" alt="Detail Photo" style="display:none;" />
         <iframe id="lightboxVideo" class="lightbox-video-frame" src="" allow="autoplay" allowfullscreen style="display:none;"></iframe>
+        <div id="lightboxNoMedia" class="lightbox-no-media" style="display:none;">📷<span>등록된 사진이 없어요</span></div>
         <button class="slider-arrow-btn next" id="sliderNextBtn" onclick="slidePhoto(1)">›</button>
         <div class="slider-counter-badge" id="sliderCounter">1 / 1</div>
       </div>
@@ -1502,6 +1530,20 @@
       }
     }
 
+    // 폰의 시스템 알림(백그라운드 푸시)을 눌러서 사이트가 열렸을 때, 구글 드라이브가 아니라
+    // 이 웹앱 안에서 바로 해당 항목으로 이동시킨다. code.gs가 알림 링크에
+    // "?ptype=종류&ptarget=대상id" 형태로 붙여 보내주는 값을 읽어서 처리한다.
+    function handleIncomingPushLink() {
+      const params = new URLSearchParams(window.location.search);
+      const ptype = params.get('ptype');
+      const ptarget = params.get('ptarget');
+      if (ptype) {
+        // 새로고침/뒤로가기 시 같은 이동이 반복되지 않도록 주소창에서 파라미터를 지운다
+        history.replaceState({}, '', window.location.pathname);
+        goToPushTarget(ptype, ptarget || '');
+      }
+    }
+
     function updatePushButtonUI() {
       const item = document.getElementById('navSettingsPush');
       const stateEl = document.getElementById('navSettingsPushState');
@@ -1612,7 +1654,10 @@
     function loadMemoriesCache() {
       try {
         const cached = JSON.parse(localStorage.getItem(MEMORIES_CACHE_KEY) || 'null');
-        if (Array.isArray(cached)) GLOBAL_MEMORIES = cached;
+        if (Array.isArray(cached)) {
+          cached.forEach(item => { item.category = normalizeCategory(item.category); });
+          GLOBAL_MEMORIES = cached;
+        }
       } catch(e) {}
     }
 
@@ -1768,6 +1813,7 @@
           const payload = immediatePayload || { appState: getFullAppState() };
           if (!payload.appState) payload.appState = getFullAppState();
           payload.secret = APP_SECRET;
+          payload.actor = currentSender; // 이 행동을 한 사람 — 백엔드가 "본인 기기엔 알림 안 보내기"에 사용
           if (notifyType) payload.notifyType = notifyType;
           if (extraFields) Object.assign(payload, extraFields);
 
@@ -1830,7 +1876,11 @@
       setSyncStatus("syncing", isInitialLoad ? "불러오는 중..." : "확인 중...");
 
       try {
-        const res = await fetch(GAS_WEB_APP_URL);
+        // ⚠️ 캐시 버스팅 필수: Apps Script의 exec 주소는 매번 새로운 임시 주소(user_content_key)로
+        // 리다이렉트되는데, 그냥 fetch(GAS_WEB_APP_URL)만 반복하면 브라우저가 이 리다이렉트 자체를
+        // 캐시해버려서 예전의 만료된 임시 주소로 계속 보내는 경우가 있다 → "404 / <!DOCTYPE" 오류로
+        // 동기화가 실패하는 원인. 매 요청마다 URL을 다르게 만들어서 항상 새로 리다이렉트를 받도록 한다.
+        const res = await fetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
         const json = await res.json();
         if (json && json.status === "success" && json.data) {
           const cloud = json.data;
@@ -1847,6 +1897,7 @@
           }
 
           if (cloud.memories && Array.isArray(cloud.memories)) {
+            cloud.memories.forEach(item => { item.category = normalizeCategory(item.category); });
             GLOBAL_MEMORIES = cloud.memories;
             renderMemories();
             saveMemoriesCache(); // 다음에 사이트를 열었을 때 0초 표시를 위한 로컬 캐시
@@ -2034,6 +2085,7 @@
             action: "upload_main_photo",
             base64: compressed,
             appState: getFullAppState(),
+            actor: currentSender,
             secret: APP_SECRET
           })
         });
@@ -2231,7 +2283,20 @@
 
     function getCategoryName(cat) {
       const map = { travel: '✈ 여행', daily: '☕ 일상', anniversary: '🎂 기념일', date: '🍽 데이트&맛집' };
-      return map[cat] || '☕ 일상';
+      return map[normalizeCategory(cat)] || '☕ 일상';
+    }
+
+    // 예전 버전에서는 category 값이 코드("daily" 등)가 아니라 이모지+글자 라벨("☕ 일상")
+    // 그대로 저장된 적이 있어서(구글 드라이브에 이미 저장된 실제 데이터에서 확인됨), 그런 값을
+    // 만나면 올바른 코드로 되돌려 놓는다. 이걸 안 하면 카테고리 필터에서 해당 추억이 사라지고,
+    // 수정 화면의 카테고리 선택창도 빈 칸으로 보이는 문제가 있었다.
+    const LEGACY_CATEGORY_LABEL_TO_CODE = {
+      '✈ 여행': 'travel', '☕ 일상': 'daily', '🎂 기념일': 'anniversary', '🍽 데이트&맛집': 'date'
+    };
+    function normalizeCategory(cat) {
+      if (['travel', 'daily', 'anniversary', 'date'].includes(cat)) return cat;
+      if (LEGACY_CATEGORY_LABEL_TO_CODE[cat]) return LEGACY_CATEGORY_LABEL_TO_CODE[cat];
+      return 'daily';
     }
 
     // media 모델 정규화: 신형(item.media = [{type,url,thumbUrl}]) 우선 사용하고,
@@ -2264,7 +2329,9 @@
         return `
           <div class="memory-card" onclick="openLightbox('${item.id}')">
             <div class="memory-img-wrapper">
-              <img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" loading="lazy" />
+              ${coverImg
+                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" loading="lazy" />`
+                : `<div class="memory-img memory-img-placeholder">📷<span>사진 없음</span></div>`}
               ${cover && cover.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
               <span class="memory-tag-badge">${getCategoryName(item.category)}</span>
               ${count > 1 ? `<span class="photo-count-badge">📷 ${count}</span>` : ''}
@@ -2364,6 +2431,7 @@
               date: formattedDate,
               desc: finalDesc,
               total: totalFiles,
+              actor: currentSender,
               secret: APP_SECRET
             })
           });
@@ -2543,6 +2611,7 @@
               date: formattedDate,
               desc: desc,
               total: keptMedia.length + prepared.length,
+              actor: currentSender,
               secret: APP_SECRET
             })
           });
@@ -2652,6 +2721,7 @@
             id: id,
             title: targetTitle,
             appState: getFullAppState(),
+            actor: currentSender,
             secret: APP_SECRET
           })
         });
@@ -2694,8 +2764,23 @@
       const thumbsContainer = document.getElementById('lightboxThumbs');
       const prevBtn = document.getElementById('sliderPrevBtn');
       const nextBtn = document.getElementById('sliderNextBtn');
+      const noMediaEl = document.getElementById('lightboxNoMedia');
 
-      if (currentLightboxMedia.length === 0) return;
+      // 사진/동영상이 하나도 없는 추억(글만 남긴 경우)은 빈 화면 대신 안내 문구를 보여준다
+      if (currentLightboxMedia.length === 0) {
+        imgEl.style.display = 'none';
+        imgEl.src = '';
+        videoEl.style.display = 'none';
+        videoEl.src = '';
+        if (noMediaEl) noMediaEl.style.display = 'flex';
+        counterEl.style.display = 'none';
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        thumbsContainer.style.display = 'none';
+        return;
+      }
+      if (noMediaEl) noMediaEl.style.display = 'none';
+      counterEl.style.display = 'block';
 
       const current = currentLightboxMedia[currentLightboxIndex];
       if (current.type === 'video') {
@@ -2745,12 +2830,34 @@
       if (videoEl) videoEl.src = ''; // 닫을 때 동영상 재생 중지
     }
 
+    // Esc 키로 닫을 수 있는 모달들 (열려 있는 모달 id → 닫는 함수)
+    const ESC_CLOSABLE_MODALS = {
+      lightboxModal: closeLightbox,
+      photoAdjustModal: () => closePhotoAdjustModal(),
+      addMemoryModal: () => closeAddMemoryModal(),
+      editMemoryModal: () => closeEditMemoryModal(),
+      deleteConfirmModal: () => closeDeleteModal(),
+      themeModal: () => closeThemeModal(),
+      dateModal: () => closeDateModal(),
+      pushHistoryModal: () => closePushHistoryModal(),
+    };
+
     document.addEventListener('keydown', (e) => {
       const modal = document.getElementById('lightboxModal');
       if (modal.classList.contains('active')) {
         if (e.key === 'ArrowLeft') slidePhoto(-1);
         if (e.key === 'ArrowRight') slidePhoto(1);
         if (e.key === 'Escape') closeLightbox();
+        return;
+      }
+      if (e.key === 'Escape') {
+        for (const id in ESC_CLOSABLE_MODALS) {
+          const el = document.getElementById(id);
+          if (el && el.classList.contains('active')) {
+            ESC_CLOSABLE_MODALS[id]();
+            break; // 한 번에 하나만 닫기
+          }
+        }
       }
     });
 
@@ -3039,8 +3146,7 @@
       renderChatMessages();
       markChatAsReadIfNeeded(); // 내가 방금 보냈으니 나 스스로는 당연히 여기까지 읽은 상태
       const preview = text.length > 60 ? text.slice(0, 60) + '...' : text;
-      // chatSender: 백엔드가 "본인이 보낸 메시지 알림은 본인 기기로 보내지 않도록" 걸러내는 데 쓴다
-      syncToCloud(null, 'chat_message', { chatPreview: preview, chatSender: currentSender });
+      syncToCloud(null, 'chat_message', { chatPreview: preview });
     }
 
     // 채팅 탭을 보고 있을 때 새 메시지를 확인하면 "여기까지 읽음" 시각을 갱신해서 상대 화면의 "1"을 지워준다.
@@ -3131,7 +3237,7 @@
     updateSettingsBadge();
     updateNotificationSoundUI();
 
-    loadFromCloudSilently();
+    loadFromCloudSilently().then(handleIncomingPushLink); // 첫 동기화가 끝난 뒤에 알림 클릭으로 들어온 이동을 처리
     setInterval(loadFromCloudSilently, 15000);
   </script>
 </body>
