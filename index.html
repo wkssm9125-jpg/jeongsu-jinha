@@ -907,6 +907,88 @@ footer.apple-footer { display:none; }
   align-items:center; justify-content:center;
 }
 
+/* =========================================================================
+   반응형 확장 — 태블릿 / PC
+   · 모바일(~767px) 레이아웃은 위 규칙 그대로 100% 유지
+   · 태블릿(768~1023px): 여백/밀도만 살짝 넓힘 (지금 구조 유지)
+   · PC(1024px~): 좌측 사이드바 내비게이션 + 홈 2단 대시보드 + 앨범 4~5열
+   ========================================================================= */
+
+/* ---------- 20. 태블릿 (768~1023px) ---------- */
+@media (min-width:768px) and (max-width:1023px) {
+  section.hero, .mood-bar, section.app-section, .memories-container, .chat-container, .settings-container {
+    max-width:700px;
+  }
+}
+
+/* 사이드바는 기본적으로 숨김 (모바일·태블릿) */
+.sidebar-nav { display:none; }
+
+/* ---------- 21. PC (1024px 이상) ---------- */
+@media (min-width:1024px) {
+  :root { --sidebar-w:252px; }
+
+  body { padding-left:var(--sidebar-w); padding-bottom:0; }
+
+  nav.apple-nav { left:var(--sidebar-w); width:calc(100% - var(--sidebar-w)); }
+  nav.apple-nav .nav-brand { visibility:hidden; } /* 브랜드는 사이드바에 표시되므로 상단바 자리만 비움 */
+
+  .tabbar { display:none; }
+
+  .sidebar-nav {
+    display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+    padding:22px 14px; background:var(--nav-bg); backdrop-filter:var(--apple-blur); -webkit-backdrop-filter:var(--apple-blur);
+    border-right:1px solid var(--border-card); z-index:1300; gap:3px; overflow-y:auto;
+  }
+  .sidebar-brand {
+    display:flex; align-items:center; gap:6px; font-size:19px; font-weight:800; letter-spacing:-.02em;
+    padding:8px 12px 24px; cursor:pointer; user-select:none;
+  }
+  .sidebar-brand .heart { color:var(--accent-pink); }
+  .sidebar-nav-btn {
+    display:flex; align-items:center; gap:13px; min-height:48px; padding:0 13px; border-radius:14px;
+    color:var(--text-secondary); font-size:14.5px; font-weight:600; cursor:pointer; user-select:none;
+    background:none; border:none; text-align:left; width:100%; transition:.15s;
+  }
+  .sidebar-nav-btn:hover { background:var(--bg-card-hover); color:var(--text-primary); }
+  .sidebar-nav-btn.active { background:var(--bg-card); color:var(--accent-pink); }
+  .sidebar-nav-btn .tabbar-icon { font-size:18px; width:22px; text-align:center; }
+  .sidebar-nav-badge {
+    margin-left:auto; min-width:19px; height:19px; padding:0 5px; border-radius:999px;
+    background:var(--accent-pink); color:#fff; font-size:10.5px; font-weight:700;
+    display:none; align-items:center; justify-content:center;
+  }
+  .sidebar-foot { margin-top:auto; padding:12px 13px 4px; font-size:11px; color:var(--text-tertiary); }
+
+  /* 홈: 2단 대시보드 (기존 섹션 순서·id 그대로, 배치만 그리드로 변경) */
+  #view-home {
+    display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:0;
+    max-width:1100px; margin:0 auto; padding:0 32px;
+  }
+  #view-home > section.hero, #view-home > .mood-bar { grid-column:1 / -1; max-width:none; margin:0; }
+  #view-home section.app-section { max-width:none; margin:0; padding:22px 0 0; }
+  #view-home #anniversaries { grid-column:1; }
+  #view-home #qna { grid-column:2; }
+  #view-home #bucket { grid-column:1; }
+  #view-home #notes { grid-column:2; }
+
+  section.hero { max-width:1100px; padding:26px 32px 4px; }
+  .mood-bar { max-width:1100px; padding:16px 32px 0; }
+
+  .memories-container, .chat-container, .settings-container { max-width:1100px; padding-left:32px; padding-right:32px; }
+  .memories-grid { grid-template-columns:repeat(4,1fr); }
+
+  /* 마우스 조작 시인성: 카드 호버 강조 */
+  .memory-card:hover, .anniversary-card:hover, .bucket-item:hover, .note-item:hover { border-color:var(--border-card-hover); }
+  .btn-add-memory:hover, .btn-modal-save:hover, .btn-add-bucket:hover, .btn-save-note:hover { filter:brightness(1.08); }
+  .category-btn:hover, .mood-tag:hover, .theme-card:hover { border-color:var(--border-card-hover); }
+}
+
+/* ---------- 22. 대형 PC 화면 (1440px 이상): 앨범 5열 ---------- */
+@media (min-width:1440px) {
+  .memories-grid { grid-template-columns:repeat(5,1fr); }
+}
+
   </style>
 </head>
 <body>
@@ -927,6 +1009,27 @@ footer.apple-footer { display:none; }
     <!-- 기존 JS 호환용 숨김 스텁: 톱니바퀴 드롭다운은 하단 탭바의 "설정" 화면으로 이동 -->
     <div class="nav-settings-wrap"><div class="nav-theme-btn" id="navSettingsBtn"></div><div class="nav-settings-menu" id="navSettingsMenu"></div></div>
     <ul class="nav-links"></ul>
+  </nav>
+
+  <!-- PC(1024px~) 전용 좌측 사이드바 내비게이션. 모바일/태블릿에서는 CSS로 숨김.
+       기존 switchPage()·updateSettingsBadge()를 그대로 재사용(아래 스크립트에서 얇게 래핑)하므로
+       하단 탭바의 동작·상태와 항상 동기화된다. -->
+  <nav class="sidebar-nav" id="sidebarNav">
+    <div class="sidebar-brand" onclick="switchPage('home')">정수<span class="heart">♥</span>진하</div>
+    <button type="button" class="sidebar-nav-btn active" data-page="home" onclick="switchPage('home')">
+      <span class="tabbar-icon">♥</span><span>홈</span>
+    </button>
+    <button type="button" class="sidebar-nav-btn" data-page="memories" onclick="switchPage('memories')">
+      <span class="tabbar-icon">▦</span><span>우리들의 추억</span>
+    </button>
+    <button type="button" class="sidebar-nav-btn" data-page="chat" onclick="switchPage('chat')">
+      <span class="tabbar-icon">💬</span><span>채팅</span>
+    </button>
+    <button type="button" class="sidebar-nav-btn" data-page="settings" onclick="switchPage('settings')">
+      <span class="tabbar-icon">⚙</span><span>설정</span>
+      <span class="sidebar-nav-badge" id="sidebarSettingsBadge"></span>
+    </button>
+    <div class="sidebar-foot">정수와진하 · 우리 둘만의 다이어리</div>
   </nav>
 
   <!-- VIEW 1: HOME PAGE -->
@@ -3549,6 +3652,30 @@ footer.apple-footer { display:none; }
     if (typeof window.setTheme === 'function') {
       var __origSetTheme = window.setTheme;
       window.setTheme = function (name) { __origSetTheme(name); updateLayoutStates(); };
+    }
+
+    /* PC 좌측 사이드바 — 기존 하단 탭바(switchPage)를 한 번 더 감싸서 활성 탭 표시만 동기화.
+       탭 전환 로직 자체는 그대로 __origSwitchPage2(원래 switchPage)가 전담한다. */
+    var __origSwitchPage2 = window.switchPage;
+    window.switchPage = function (page) {
+      __origSwitchPage2(page);
+      document.querySelectorAll('.sidebar-nav-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-page') === page);
+      });
+    };
+
+    /* 설정 알림 배지도 사이드바 쪽에 그대로 반영 (기존 updateSettingsBadge는 손대지 않음) */
+    if (typeof window.updateSettingsBadge === 'function') {
+      var __origUpdateSettingsBadge = window.updateSettingsBadge;
+      window.updateSettingsBadge = async function () {
+        await __origUpdateSettingsBadge();
+        var src = document.getElementById('navSettingsBadge');
+        var dst = document.getElementById('sidebarSettingsBadge');
+        if (src && dst) {
+          dst.innerText = src.innerText;
+          dst.style.display = src.style.display === 'flex' ? 'flex' : 'none';
+        }
+      };
     }
 
     /* 히어로 보조 텍스트: 시작일 + 다음 기념일 */
