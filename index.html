@@ -989,6 +989,8 @@ footer.apple-footer { display:none; }
   .memories-grid { grid-template-columns:repeat(5,1fr); }
 }
 
+  
+  body.kb-open .tabbar { display:none !important; }
   </style>
 </head>
 <body>
@@ -3723,6 +3725,12 @@ footer.apple-footer { display:none; }
       updateHeroMeta();
       setTimeout(function () { updateHeroMeta(); syncSettingsPhoto(); }, 1500);
       setInterval(function () { updateHeroMeta(); syncSettingsPhoto(); }, 30000);
+    
+      var __chatInputEl = document.getElementById('chatInput');
+      if (__chatInputEl) {
+        __chatInputEl.addEventListener('focus', function () { document.body.classList.add('kb-open'); });
+        __chatInputEl.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
+      }
     });
     applyStoredLayouts();
   </script>
