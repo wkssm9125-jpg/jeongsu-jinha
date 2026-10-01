@@ -989,16 +989,31 @@ footer.apple-footer { display:none; }
   .memories-grid { grid-template-columns:repeat(5,1fr); }
 }
 
-  
-  body.kb-open .tabbar { display:none !important; }
-  
-  body.kb-open { padding-bottom:0; }
-  body.kb-open .chat-container { height:calc(var(--vvh, 100vh) - 52px); }
-  @media (max-width:1023px) {
-    input[type="text"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"], input[type="number"], input[type="date"], input:not([type]), textarea, select {
-      font-size:16px !important;
-    }
+
+/* ---------- 23. 모바일 키보드 대응 ----------
+   · iOS는 키보드가 올라와도 100vh(레이아웃 뷰포트)가 줄지 않고 화면만 위로 밀어 올려서(pan) 빈 공간이 생긴다.
+   · 그래서 입력 중(body.kb-open)에는 채팅 화면을 "실제로 보이는 영역(visualViewport)"에 고정(fixed)시키고,
+     사파리가 화면을 밀어 올린 만큼(--vvo) 같이 따라가게 해서 키보드 바로 위에 입력창이 딱 붙도록 한다.
+   · 입력창 글자 16px 미만이면 iOS가 자동 확대하므로 모바일에서는 16px로 고정. */
+@media (max-width:1023px) {
+  input[type="text"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"], input[type="number"], input[type="date"], input:not([type]), textarea, select {
+    font-size:16px !important;
   }
+  body.kb-open .tabbar { display:none !important; }
+  body.kb-open { padding-bottom:0; }
+  body.kb-open #view-chat.active .chat-container {
+    position:fixed; left:0; right:0; top:0; z-index:1300; margin:0 auto;
+    height:var(--vvh, 100vh); max-height:none;
+    transform:translateY(var(--vvo, 0px));
+    background:var(--bg-primary);
+  }
+  /* 바텀시트(추억 등록 등)에서 입력할 때도 시트가 키보드 위에 오도록 보이는 영역에 맞춘다 */
+  body.kb-open .modal-overlay.active {
+    top:0; bottom:auto; height:var(--vvh, 100vh);
+    transform:translateY(var(--vvo, 0px));
+  }
+  body.kb-open .modal-overlay.active .apple-modal { max-height:var(--vvh, 90vh); }
+}
   </style>
 </head>
 <body>
@@ -3734,16 +3749,49 @@ footer.apple-footer { display:none; }
       setTimeout(function () { updateHeroMeta(); syncSettingsPhoto(); }, 1500);
       setInterval(function () { updateHeroMeta(); syncSettingsPhoto(); }, 30000);
     
-      var __chatInputEl = document.getElementById('chatInput');
-      if (__chatInputEl) {
-        __chatInputEl.addEventListener('focus', function () { document.body.classList.add('kb-open'); });
-        __chatInputEl.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
+      // ---- 모바일 키보드 대응 (CSS 23번 섹션과 한 세트) ----
+      // 글자 입력칸에 포커스가 가면(=키보드가 올라오면) body.kb-open 을 켜서 하단 탭바를 숨기고,
+      // 채팅 화면은 실제 보이는 영역(visualViewport)에 꼭 맞게 고정한다.
+      function __isTextField(el) {
+        if (!el || !el.tagName) return false;
+        var t = el.tagName.toLowerCase();
+        if (t === 'textarea' || t === 'select') return true;
+        if (t !== 'input') return false;
+        var type = (el.getAttribute('type') || 'text').toLowerCase();
+        return ['text', 'search', 'tel', 'url', 'email', 'number', 'date', 'password'].indexOf(type) !== -1;
       }
-    
-      function __updateVVH() {
+      var __kbOffTimer = null;
+      document.addEventListener('focusin', function (e) {
+        if (!__isTextField(e.target)) return;
+        clearTimeout(__kbOffTimer);
+        document.body.classList.add('kb-open');
+        __updateVVH();
+      });
+      document.addEventListener('focusout', function (e) {
+        if (!__isTextField(e.target)) return;
+        clearTimeout(__kbOffTimer);
+        __kbOffTimer = setTimeout(function () {
+          if (!__isTextField(document.activeElement)) {
+            document.body.classList.remove('kb-open');
+            __updateVVH();
+          }
+        }, 80);
+      });
+
+      function __updateVVH(ev) {
         var vv = window.visualViewport;
         var h = vv ? vv.height : window.innerHeight;
-        document.documentElement.style.setProperty("--vvh", h + "px");
+        var o = vv ? vv.offsetTop : 0;
+        document.documentElement.style.setProperty("--vvh", Math.round(h) + "px");
+        document.documentElement.style.setProperty("--vvo", Math.round(o) + "px");
+        var chatView = document.getElementById('view-chat');
+        var isResize = !ev || ev.type === 'resize';
+        if (isResize && document.body.classList.contains('kb-open') && chatView && chatView.classList.contains('active')) {
+          // 키보드가 올라오며 사파리가 화면을 밀어 올린 경우 원위치시키고, 마지막 메시지가 보이도록 맞춘다
+          if (window.scrollY !== 0 || o !== 0) { try { window.scrollTo(0, 0); } catch (e) {} }
+          var list = document.getElementById('chatMessagesList');
+          if (list) list.scrollTop = list.scrollHeight;
+        }
       }
       __updateVVH();
       if (window.visualViewport) {
