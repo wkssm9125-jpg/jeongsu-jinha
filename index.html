@@ -588,7 +588,7 @@ section.app-section { width:100%; max-width:560px; margin:0 auto; padding:20px v
 /* ---------- 13. 채팅 ---------- */
 .chat-container {
   max-width:640px; margin:0 auto; display:flex; flex-direction:column;
-  height:calc(100vh - 52px - var(--tabbar-h)); padding:0;
+  height:calc(var(--vvh, 100vh) - 52px - var(--tabbar-h)); padding:0;
 }
 .chat-header {
   flex-shrink:0; display:flex; align-items:center; gap:10px;
@@ -991,6 +991,14 @@ footer.apple-footer { display:none; }
 
   
   body.kb-open .tabbar { display:none !important; }
+  
+  body.kb-open { padding-bottom:0; }
+  body.kb-open .chat-container { height:calc(var(--vvh, 100vh) - 52px); }
+  @media (max-width:1023px) {
+    input[type="text"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"], input[type="number"], input[type="date"], input:not([type]), textarea, select {
+      font-size:16px !important;
+    }
+  }
   </style>
 </head>
 <body>
@@ -3498,7 +3506,7 @@ footer.apple-footer { display:none; }
     updateSettingsBadge();
     updateNotificationSoundUI();
 
-    loadFromCloudSilently().then(handleIncomingPushLink); // 첫 동기화가 끝난 뒤에 알림 클릭으로 들어온 이동을 처리
+    handleIncomingPushLink(); loadFromCloudSilently(); // 첫 동기화가 끝난 뒤에 알림 클릭으로 들어온 이동을 처리
     setInterval(loadFromCloudSilently, 15000);
   </script>
   <!-- 레이아웃 테마 시트 -->
@@ -3731,6 +3739,18 @@ footer.apple-footer { display:none; }
         __chatInputEl.addEventListener('focus', function () { document.body.classList.add('kb-open'); });
         __chatInputEl.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
       }
+    
+      function __updateVVH() {
+        var vv = window.visualViewport;
+        var h = vv ? vv.height : window.innerHeight;
+        document.documentElement.style.setProperty("--vvh", h + "px");
+      }
+      __updateVVH();
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", __updateVVH);
+        window.visualViewport.addEventListener("scroll", __updateVVH);
+      }
+      window.addEventListener("resize", __updateVVH);
     });
     applyStoredLayouts();
   </script>
