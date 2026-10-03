@@ -60,8 +60,12 @@ messaging.onBackgroundMessage((payload) => {
   savePushHistory(title, body, data.type, data.targetId); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
   const options = {
     body: body,
-    tag: 'jeongsu-jinha-update', // 같은 태그면 알림이 쌓이지 않고 최신 것으로 교체됨
-    data: { url: (payload.fcmOptions && payload.fcmOptions.link) || (payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || '/' }
+    // 알림마다 다른 태그를 써서 쌓이게 하고, 혹시 같은 태그로 교체되더라도 다시 울리도록(renotify) 한다.
+    // (안드로이드는 같은 태그의 알림이 교체될 때 renotify가 없으면 소리·진동 없이 조용히 바뀐다)
+    tag: 'jeongsu-jinha-' + Date.now(),
+    renotify: true,
+    vibrate: [180, 80, 180],
+    data: { url: (payload.fcmOptions && payload.fcmOptions.link) || (payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || '/', type: data.type || '', targetId: data.targetId || '' }
   };
   self.registration.showNotification(title, options);
 });
