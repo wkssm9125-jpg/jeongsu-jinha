@@ -1076,6 +1076,40 @@ footer.apple-footer { display:none; }
   body.kb-open .modal-overlay.active .apple-modal { max-height:var(--vvh, 90vh); }
 }
 
+/* ---------- 23-1. 내 계정(이 기기의 주인) ---------- */
+.identity-chip {
+  margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:0 12px 0 10px;
+  border-radius:999px; background:var(--bg-glass); border:1px solid var(--border-card); color:var(--text-secondary);
+  font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.identity-chip-dot { width:8px; height:8px; border-radius:50%; background:var(--chat-him); flex-shrink:0; }
+body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
+.identity-chip-name { color:var(--text-primary); font-weight:800; }
+.identity-chip-sub { color:var(--text-tertiary); }
+.note-sender-line { display:flex; align-items:center; gap:6px; margin-bottom:10px; font-size:12px; color:var(--text-tertiary); }
+.note-sender-line .identity-chip-name { font-size:12.5px; }
+.note-sender-change {
+  margin-left:auto; min-height:30px; padding:0 10px; border-radius:999px; font-size:11.5px; font-weight:600; cursor:pointer;
+  background:none; border:1px solid var(--border-card); color:var(--text-tertiary);
+}
+.identity-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px; }
+.identity-card {
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; padding:22px 12px 18px;
+  border-radius:20px; background:var(--bg-card); border:2px solid var(--border-card); color:var(--text-primary); cursor:pointer;
+  transition:border-color .18s, transform .08s;
+}
+.identity-card:active { transform:scale(.97); }
+.identity-card.active.him { border-color:var(--chat-him); }
+.identity-card.active.her { border-color:var(--chat-her); }
+.identity-avatar { font-size:34px; line-height:1; }
+.identity-name { font-size:17px; font-weight:800; }
+.identity-check {
+  position:absolute; top:10px; right:10px; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; color:#fff; background:var(--accent-pink); opacity:0; transform:scale(.6); transition:.18s;
+}
+.identity-card.active .identity-check { opacity:1; transform:scale(1); }
+.identity-note { margin-top:14px; font-size:12px; color:var(--text-tertiary); line-height:1.6; text-align:center; min-height:18px; }
+
 /* ---------- 24. 눌림 피드백 · 사진 보기 · PC 다이얼로그 · 동작 줄이기 ---------- */
 .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .nav-settings-item, .theme-card, .sender-btn,
 .btn-card-action, .btn-lightbox-edit, .btn-lightbox-delete, .hero-edit-btn, .photo-edit-badge, .btn-del-bucket,
@@ -1298,9 +1332,9 @@ footer.apple-footer { display:none; }
         <p class="section-desc">언제든 전하고 싶은 따뜻한 한 줄을 남겨보세요.</p>
       </div>
       <div class="note-box">
-        <div class="note-sender-toggle">
-          <button class="sender-btn active" id="btnSenderHim" onclick="setSender('Him')">정수</button>
-          <button class="sender-btn" id="btnSenderHer" onclick="setSender('Her')">진하</button>
+        <div class="note-sender-line">
+          <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">의 쪽지로 남겨져요</span>
+          <button type="button" class="note-sender-change" onclick="openIdentityModal()">계정 변경</button>
         </div>
         <textarea id="noteInput" class="note-textarea" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..."></textarea>
         <div class="note-editor-actions">
@@ -1341,10 +1375,9 @@ footer.apple-footer { display:none; }
     <div class="chat-container">
       <div class="chat-header">
         <h2 class="section-title">정수 · 진하</h2>
-        <div class="note-sender-toggle">
-          <button class="sender-btn active" id="btnChatSenderHim" onclick="setSender('Him')">정수</button>
-          <button class="sender-btn" id="btnChatSenderHer" onclick="setSender('Her')">진하</button>
-        </div>
+        <button type="button" class="identity-chip" onclick="openIdentityModal()" title="내 계정 바꾸기">
+          <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">로 보내는 중</span>
+        </button>
       </div>
       <div class="chat-messages" id="chatMessagesList"></div>
       <div class="chat-input-area">
@@ -1372,6 +1405,14 @@ footer.apple-footer { display:none; }
         <div class="settings-profile-copy">
           <strong>정수 ♥ 진하</strong>
           <span id="settingsProfileMeta">우리 둘만의 다이어리</span>
+        </div>
+      </div>
+
+      <div class="settings-group-label">내 계정</div>
+      <div class="settings-group">
+        <div class="nav-settings-item" onclick="openIdentityModal()">
+          <span>👤 이 기기의 주인</span>
+          <span class="nav-settings-item-state" id="settingsIdentityState">정수</span>
         </div>
       </div>
 
@@ -1646,11 +1687,32 @@ footer.apple-footer { display:none; }
     </div>
   </div>
 
+  <!-- Modal: 내 계정(이 기기의 주인) 선택 -->
+  <div class="modal-overlay" id="identityModal" onclick="closeIdentityModal()">
+    <div class="apple-modal" onclick="event.stopPropagation()" style="max-width: 480px;">
+      <h3 class="modal-title">👤 이 폰은 누구 거예요?</h3>
+      <p class="modal-desc">한 번만 고르면 이 기기에서 보내는 채팅·쪽지가 모두 이 이름으로 남고, 알림도 상대방에게만 가요.<br>설정에서 언제든 바꿀 수 있어요.</p>
+      <div class="identity-grid">
+        <button type="button" class="identity-card him" id="identityCardHim" onclick="chooseIdentity('Him')">
+          <span class="identity-avatar">💙</span>
+          <span class="identity-name">정수</span>
+          <span class="identity-check">✓</span>
+        </button>
+        <button type="button" class="identity-card her" id="identityCardHer" onclick="chooseIdentity('Her')">
+          <span class="identity-avatar">💗</span>
+          <span class="identity-name">진하</span>
+          <span class="identity-check">✓</span>
+        </button>
+      </div>
+      <p class="identity-note" id="identityNote"></p>
+    </div>
+  </div>
+
   <!-- Modal 6: 테마 변경 모달 -->
   <div class="modal-overlay" id="themeModal" onclick="closeThemeModal()">
     <div class="apple-modal" onclick="event.stopPropagation()" style="max-width: 480px;">
       <h3 class="modal-title">🎨 커플 테마 설정</h3>
-      <p class="modal-desc">둘만의 분위기에 어울리는 테마를 선택해 보세요.<br>선택한 테마는 클라우드에 자동 동기화됩니다.</p>
+      <p class="modal-desc">둘만의 분위기에 어울리는 테마를 선택해 보세요.<br>테마는 이 기기에만 적용돼요 — 두 사람이 각자 다른 테마를 써도 괜찮아요.</p>
       
       <div class="theme-grid">
         <div class="theme-card active" id="theme-midnight" onclick="setTheme('midnight')">
@@ -2002,6 +2064,7 @@ footer.apple-footer { display:none; }
         }
         localStorage.removeItem('push_enabled');
         localStorage.removeItem('fcm_token');
+        localStorage.removeItem('fcm_token_sender');
         updatePushButtonUI();
         showToast('알림을 껐습니다.', '🔕');
         return;
@@ -2029,18 +2092,12 @@ footer.apple-footer { display:none; }
         });
         localStorage.setItem('push_enabled', '1');
         localStorage.setItem('fcm_token', token);
+        localStorage.setItem('fcm_token_sender', currentSender);
         updatePushButtonUI();
-        showToast('알림이 켜졌습니다! 🔔', '🔔');
+        showToast(`알림이 켜졌습니다! ${SENDER_NAMES[currentSender]}의 폰으로 등록됐어요 🔔`, '🔔');
 
         // 사이트를 열어놓고 있는 동안(포그라운드)에도 알림 내용을 토스트로 보여준다
-        fcmMessagingInstance.onMessage((payload) => {
-          const n = payload.notification || {};
-          const d = payload.data || {};
-          showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
-          playNotificationSound();
-          savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!', d.type, d.targetId);
-          updateSettingsBadge();
-        });
+        attachForegroundPushHandler();
       } catch(e) {
         console.error('푸시 알림 등록 실패:', e);
         showToast('알림 등록 중 오류가 발생했어요.', '⚠️');
@@ -2302,10 +2359,7 @@ footer.apple-footer { display:none; }
           const cloud = json.data;
           detectAndNotifyChange(cloud);
 
-          if (cloud.theme && cloud.theme !== localStorage.getItem("couple_theme")) {
-            localStorage.setItem("couple_theme", cloud.theme);
-            loadTheme();
-          }
+          // 컬러 테마는 기기마다 따로 쓴다 (서로 다른 테마 가능) — 클라우드 값으로 덮어쓰지 않음
 
           if (cloud.mainPhoto) {
             localStorage.setItem("couple_main_photo", cloud.mainPhoto);
@@ -3355,6 +3409,7 @@ footer.apple-footer { display:none; }
       themeModal: () => closeThemeModal(),
       dateModal: () => closeDateModal(),
       pushHistoryModal: () => closePushHistoryModal(),
+      identityModal: () => closeIdentityModal(),
     };
 
     document.addEventListener('keydown', (e) => {
@@ -3492,29 +3547,105 @@ footer.apple-footer { display:none; }
     }
 
     // "나는 정수/진하 중 누구인지"는 쪽지·채팅에서 공통으로 쓰는 정체성이라 기기에 저장해두고 계속 기억한다.
+    // "이 기기의 주인" — 예전의 정수/진하 전환 버튼 대신, 기기마다 한 번만 고르는 내 계정.
+    // 채팅·쪽지의 보내는 사람과 "알림은 상대에게만" 판단이 모두 이 값으로 정해진다.
+    const SENDER_NAMES = { Him: '정수', Her: '진하' };
     let currentSender = localStorage.getItem('couple_sender') || "Him";
-    function setSender(sender) {
+    // 예전 버전은 전환 버튼 값이 자동 저장되어 있어서 실제 주인과 다를 수 있다 → 한 번은 직접 확인받는다
+    const hasChosenIdentity = () => localStorage.getItem('identity_confirmed') === '1';
+
+    function setSender(sender, opts) {
+      const changed = currentSender !== sender || !hasChosenIdentity();
       currentSender = sender;
       localStorage.setItem('couple_sender', sender);
-      const himBtn = document.getElementById("btnSenderHim");
-      const herBtn = document.getElementById("btnSenderHer");
-      if (himBtn) himBtn.classList.toggle("active", sender === "Him");
-      if (herBtn) herBtn.classList.toggle("active", sender === "Her");
-      const chatHimBtn = document.getElementById("btnChatSenderHim");
-      const chatHerBtn = document.getElementById("btnChatSenderHer");
-      if (chatHimBtn) chatHimBtn.classList.toggle("active", sender === "Him");
-      if (chatHerBtn) chatHerBtn.classList.toggle("active", sender === "Her");
-      renderChatMessages(); // 보내는 사람이 바뀌면 채팅 말풍선의 좌/우 정렬도 그 사람 기준으로 다시 그린다
+      renderIdentityUI();
+      renderChatMessages(); // 내 기준으로 말풍선 좌/우를 다시 그린다
+      // 이 기기에서 푸시를 켜둔 상태면, 서버의 토큰 주인 정보도 같이 갱신 (내가 보낸 건 나한테 안 오게)
+      if (changed && localStorage.getItem('push_enabled') === '1') ensurePushRegistration(true).catch(() => {});
+    }
 
-      // 이미 이 기기에서 푸시 알림을 켜둔 상태라면, 서버에 등록된 토큰의 "이 기기는 누구 것인지" 정보도
-      // 같이 갱신해준다 (그래야 "내가 보낸 채팅은 알림 안 오게"가 정확히 동작한다).
-      if (localStorage.getItem('push_enabled') === '1' && localStorage.getItem('fcm_token') && GAS_WEB_APP_URL) {
-        fetch(GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'register_push_token', token: localStorage.getItem('fcm_token'), sender: currentSender, secret: APP_SECRET })
-        }).catch(() => {});
+    function renderIdentityUI() {
+      const name = SENDER_NAMES[currentSender] || currentSender;
+      document.body.setAttribute('data-me', currentSender);
+      document.querySelectorAll('.identity-chip-name').forEach(el => { el.innerText = name; });
+      const st = document.getElementById('settingsIdentityState');
+      if (st) st.innerText = hasChosenIdentity() ? name : '선택 안 됨';
+      const him = document.getElementById('identityCardHim');
+      const her = document.getElementById('identityCardHer');
+      if (him) him.classList.toggle('active', hasChosenIdentity() && currentSender === 'Him');
+      if (her) her.classList.toggle('active', hasChosenIdentity() && currentSender === 'Her');
+      const note = document.getElementById('identityNote');
+      if (note) note.innerText = hasChosenIdentity()
+        ? `지금 이 기기는 "${name}"의 폰이에요. 상대방 폰에서는 상대방 이름을 골라 주세요.`
+        : (localStorage.getItem('couple_sender') ? `지금까지는 "${name}"로 보내고 있었어요. 이 폰의 주인을 한 번만 확인해 주세요.` : '아직 선택되지 않았어요. 위에서 골라 주세요.');
+    }
+
+    let __identityForced = false;
+    function openIdentityModal(force) {
+      __identityForced = !!force;
+      renderIdentityUI();
+      document.getElementById('identityModal').classList.add('active');
+    }
+    function closeIdentityModal() {
+      if (__identityForced && !hasChosenIdentity()) return; // 처음엔 꼭 고르고 넘어가도록
+      __identityForced = false;
+      document.getElementById('identityModal').classList.remove('active');
+    }
+    function chooseIdentity(sender) {
+      const first = !hasChosenIdentity();
+      localStorage.setItem('identity_confirmed', '1');
+      setSender(sender);
+      showToast(first ? `${SENDER_NAMES[sender]}의 폰으로 설정했어요 💞` : `이제부터 ${SENDER_NAMES[sender]}로 보내요`, '👤');
+      __identityForced = false;
+      setTimeout(() => document.getElementById('identityModal').classList.remove('active'), 350);
+    }
+
+    // 푸시 등록을 매번 확인한다: 토큰은 가끔 바뀌므로(만료/재발급) 사이트를 열 때마다 현재 토큰을 다시 받아
+    // 서버에 "이 기기 = 누구"와 함께 등록하고, 사이트가 열려 있는 동안 오는 알림(포그라운드)도 받도록 연결한다.
+    async function ensurePushRegistration(forceRegister) {
+      if (localStorage.getItem('push_enabled') !== '1') return;
+      if (!isPushConfigured() || !GAS_WEB_APP_URL) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') return;
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
+      try {
+        const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        if (!fcmMessagingInstance) {
+          fcmMessagingInstance = firebase.messaging();
+          attachForegroundPushHandler();
+        }
+        const token = await fcmMessagingInstance.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+        if (!token) return;
+        const stored = localStorage.getItem('fcm_token');
+        const storedSender = localStorage.getItem('fcm_token_sender');
+        if (forceRegister || token !== stored || storedSender !== currentSender) {
+          if (stored && stored !== token) {
+            // 예전 토큰은 서버에서 지워서 죽은 토큰으로 보내는 일이 없게
+            fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: 'unregister_push_token', token: stored, secret: APP_SECRET }) }).catch(() => {});
+          }
+          await fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'register_push_token', token: token, sender: currentSender, secret: APP_SECRET }) });
+          localStorage.setItem('fcm_token', token);
+          localStorage.setItem('fcm_token_sender', currentSender);
+        }
+      } catch (e) {
+        console.warn('[push] 등록 갱신 실패:', e);
       }
+    }
+
+    let __foregroundHandlerAttached = false;
+    function attachForegroundPushHandler() {
+      if (__foregroundHandlerAttached || !fcmMessagingInstance) return;
+      __foregroundHandlerAttached = true;
+      fcmMessagingInstance.onMessage((payload) => {
+        const n = payload.notification || {};
+        const d = payload.data || {};
+        showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
+        playNotificationSound();
+        savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!', d.type, d.targetId);
+        updateSettingsBadge();
+      });
     }
 
     let editingNoteId = null; // 지금 수정 중인 쪽지의 id (없으면 새 쪽지 작성 모드)
@@ -3553,6 +3684,7 @@ footer.apple-footer { display:none; }
       const input = document.getElementById('noteInput');
       const text = input.value.trim();
       if (!text) return;
+      if (!hasChosenIdentity()) { openIdentityModal(true); return; }
       registerLocalAction();
       const saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
       const now = new Date();
@@ -3709,6 +3841,7 @@ footer.apple-footer { display:none; }
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text) return;
+      if (!hasChosenIdentity()) { openIdentityModal(true); return; }
       registerLocalAction();
       const msg = { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 7), sender: currentSender, text, time: Date.now() };
       chatMessages.push(msg);
@@ -3801,7 +3934,9 @@ footer.apple-footer { display:none; }
     loadNotes();
     loadMemoriesCache(); // 사이트를 열자마자 마지막으로 봤던 추억 사진첩을 0초로 먼저 그려준다
     renderMemories();
-    setSender(currentSender); // 기기에 저장된 "나는 정수/진하" 선택을 쪽지·채팅 버튼에 반영
+    renderIdentityUI(); // 기기에 저장된 "이 기기의 주인"을 화면에 반영
+    if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 600); // 처음 쓰는 기기면 먼저 누구 폰인지 고르게
+    ensurePushRegistration(false).catch(() => {}); // 토큰이 바뀌었거나 주인이 바뀌었으면 서버 등록 갱신
     loadChatMessages();
     loadChatReadReceipts();
     renderChatMessages();
