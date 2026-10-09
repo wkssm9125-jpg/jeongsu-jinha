@@ -99,7 +99,7 @@
 }
 
 :root {
-  --apple-blur:blur(20px);
+  --apple-blur:blur(14px); /* 블러 반경이 클수록 스크롤 때 폰이 버벅여서 살짝 낮춤 (보기엔 거의 동일) */
   --radius-large:24px; --radius-medium:20px; --radius-small:14px;
   --font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -200,7 +200,7 @@ nav.apple-nav {
 section.hero {
   position:relative; width:100%; max-width:560px; margin:0 auto; padding:14px var(--pad-x) 4px; overflow:hidden;
 }
-.hero-glow { position:absolute; border-radius:50%; filter:blur(60px); pointer-events:none; }
+.hero-glow { position:absolute; border-radius:50%; filter:blur(48px); pointer-events:none; will-change:transform; transform:translateZ(0); }
 .hero-glow.one { width:230px; height:230px; background:var(--hero-glow-1); opacity:.36; top:-70px; left:-50px; animation:floaty 9s ease-in-out infinite; }
 .hero-glow.two { width:200px; height:200px; background:var(--hero-glow-2); opacity:.28; bottom:-90px; right:-40px; animation:floaty 11s ease-in-out infinite reverse; }
 .hero-inner {
@@ -1110,6 +1110,15 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
 .identity-card.active .identity-check { opacity:1; transform:scale(1); }
 .identity-note { margin-top:14px; font-size:12px; color:var(--text-tertiary); line-height:1.6; text-align:center; min-height:18px; }
 
+/* ---------- 23-2. 반응 속도 ---------- */
+/* 터치 시 더블탭 확대 판정을 기다리지 않고 바로 반응하게 (한 박자 늦는 느낌 제거) */
+button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card, .anniversary-card, .bucket-item-left,
+.nav-settings-item, .theme-card, .identity-card, .thumb-preview-item, .slider-arrow-btn, .sync-status-badge, .note-item,
+.dday-big, .dday-container, .couple-photo-wrapper, .hero-edit-btn, .photo-edit-badge, .identity-chip, .file-pick-btn, .btn-card-action, .lightbox-close-btn {
+  touch-action:manipulation;
+}
+.lightbox-video-el { width:100%; max-height:320px; display:block; background:#000; }
+
 /* ---------- 24. 눌림 피드백 · 사진 보기 · PC 다이얼로그 · 동작 줄이기 ---------- */
 .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .nav-settings-item, .theme-card, .sender-btn,
 .btn-card-action, .btn-lightbox-edit, .btn-lightbox-delete, .hero-edit-btn, .photo-edit-badge, .btn-del-bucket,
@@ -1129,6 +1138,7 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
   .lightbox-slider-box { max-height:min(62vh, 520px); }
   .lightbox-slider-img { max-height:min(62vh, 520px); }
   .lightbox-video-frame { height:min(62vh, 520px); }
+  .lightbox-video-el { max-height:min(62vh, 520px); }
 }
 
 /* PC: 사진 보기는 큰 중앙 뷰어(사진 왼쪽 · 정보 오른쪽), 모달은 중앙 다이얼로그 */
@@ -1151,6 +1161,7 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
   .lightbox-slider-box { grid-column:1; grid-row:1 / span 2; max-height:none; height:min(80vh, 820px); border-radius:18px; }
   .lightbox-slider-img { max-height:none; width:100%; height:100%; }
   .lightbox-video-frame { height:100%; }
+  .lightbox-video-el { max-height:none; height:100%; }
   .lightbox-no-media { height:100%; }
   .lightbox-thumbnails-strip { grid-column:2; grid-row:2; flex-wrap:wrap; align-content:flex-start; padding-top:0; min-height:0; overflow-y:auto; }
   .lightbox-body { grid-column:2; grid-row:1; padding:6px 0 0; max-height:46vh; overflow-y:auto; }
@@ -1661,6 +1672,7 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       <div class="lightbox-slider-box">
         <button class="slider-arrow-btn prev" id="sliderPrevBtn" onclick="slidePhoto(-1)">‹</button>
         <img id="lightboxImg" class="lightbox-slider-img" src="" alt="Detail Photo" style="display:none;" />
+        <video id="lightboxVideoEl" class="lightbox-video-el" controls playsinline preload="metadata" style="display:none;"></video>
         <iframe id="lightboxVideo" class="lightbox-video-frame" src="" allow="autoplay" allowfullscreen style="display:none;"></iframe>
         <div id="lightboxNoMedia" class="lightbox-no-media" style="display:none;">🖼<span>사진은 아직 없지만, 이야기는 남아 있어요</span></div>
         <button class="slider-arrow-btn next" id="sliderNextBtn" onclick="slidePhoto(1)">›</button>
@@ -2361,33 +2373,36 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
 
           // 컬러 테마는 기기마다 따로 쓴다 (서로 다른 테마 가능) — 클라우드 값으로 덮어쓰지 않음
 
-          if (cloud.mainPhoto) {
-            localStorage.setItem("couple_main_photo", cloud.mainPhoto);
-            loadPhoto();
-          }
+          // ⚡ 성능: 15초(채팅 중 5초)마다 받아오는 데이터 중 "실제로 바뀐 부분만" 다시 그린다.
+          //    예전엔 매번 사진첩·채팅·쪽지·버킷을 전부 다시 그려서 폰에서 주기적으로 버벅였다.
+          const changed = (key, value) => {
+            const next = typeof value === 'string' ? value : JSON.stringify(value);
+            if (localStorage.getItem(key) === next) return false;
+            localStorage.setItem(key, next);
+            return true;
+          };
+
+          if (cloud.mainPhoto && changed("couple_main_photo", cloud.mainPhoto)) loadPhoto();
 
           if (cloud.memories && Array.isArray(cloud.memories)) {
             cloud.memories.forEach(item => { item.category = normalizeCategory(item.category); });
-            GLOBAL_MEMORIES = cloud.memories;
-            renderMemories();
-            saveMemoriesCache(); // 다음에 사이트를 열었을 때 0초 표시를 위한 로컬 캐시
+            const nextMem = JSON.stringify(cloud.memories);
+            if (nextMem !== JSON.stringify(GLOBAL_MEMORIES)) {
+              GLOBAL_MEMORIES = cloud.memories;
+              renderMemories();
+              saveMemoriesCache(); // 다음에 사이트를 열었을 때 0초 표시를 위한 로컬 캐시
+            }
           }
 
-          if (cloud.notes) {
-            localStorage.setItem("couple_notes", JSON.stringify(cloud.notes));
-            loadNotes();
-          }
+          if (cloud.notes && changed("couple_notes", cloud.notes)) loadNotes();
 
-          if (cloud.chatMessages) {
-            localStorage.setItem("couple_chat", JSON.stringify(cloud.chatMessages));
-            loadChatMessages();
-          }
-          if (cloud.chatReadReceipts) {
+          let chatChanged = false;
+          if (cloud.chatMessages && changed("couple_chat", cloud.chatMessages)) { loadChatMessages(); chatChanged = true; }
+          if (cloud.chatReadReceipts && changed("couple_chat_read", cloud.chatReadReceipts)) {
             // 백엔드가 이미 기존 값과 병합(더 늦은 시각으로만 갱신)해서 보내주므로 그대로 덮어써도 안전하다
-            localStorage.setItem("couple_chat_read", JSON.stringify(cloud.chatReadReceipts));
-            loadChatReadReceipts();
+            loadChatReadReceipts(); chatChanged = true;
           }
-          if (cloud.chatMessages || cloud.chatReadReceipts) {
+          if (chatChanged) {
             renderChatMessages();
             // 채팅 탭을 보고 있는 중에 새 메시지가 도착했다면 그 즉시 "읽음"으로 갱신해서 상대방의 "1"을 지워준다
             const chatViewEl = document.getElementById('view-chat');
@@ -2407,18 +2422,16 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
           }
           if (cloud.qnaAnswers) {
             Object.keys(cloud.qnaAnswers).forEach(idx => {
-              localStorage.setItem(`qna_answers_${idx}`, JSON.stringify(cloud.qnaAnswers[idx]));
+              if (changed(`qna_answers_${idx}`, cloud.qnaAnswers[idx])) qnaNeedsRerender = true;
             });
-            qnaNeedsRerender = true;
           }
           if (qnaNeedsRerender) renderQnA();
 
-          if (cloud.mood) { localStorage.setItem("couple_mood", cloud.mood); loadMood(); }
-          if (cloud.buckets) { localStorage.setItem("couple_buckets", JSON.stringify(cloud.buckets)); renderBuckets(); }
-          if (cloud.photoSettings) { localStorage.setItem("couple_photo_settings", JSON.stringify(cloud.photoSettings)); }
-          if (cloud.anniversary) { localStorage.setItem("couple_anniversary_date", cloud.anniversary); updateTimer(); renderAnniversaries(); }
+          if (cloud.mood && changed("couple_mood", cloud.mood)) loadMood();
+          if (cloud.buckets && changed("couple_buckets", cloud.buckets)) renderBuckets();
+          if (cloud.photoSettings && changed("couple_photo_settings", cloud.photoSettings)) loadPhoto();
+          if (cloud.anniversary && changed("couple_anniversary_date", cloud.anniversary)) { updateTimer(); renderAnniversaries(); }
 
-          loadPhoto();
           isInitialLoad = false;
           setSyncStatus("synced", "동기화됨");
         } else {
@@ -2779,9 +2792,15 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       return [];
     }
 
-    function renderMemories() {
+    let __memoriesRenderSig = '';
+    function renderMemories(force) {
       const grid = document.getElementById('memoriesGrid');
       const filtered = currentCategory === 'all' ? GLOBAL_MEMORIES : GLOBAL_MEMORIES.filter(item => item.category === currentCategory);
+      // ⚡ 같은 내용이면 다시 그리지 않는다 (탭을 오갈 때마다 사진 카드를 전부 다시 만들던 비용 제거)
+      const sig = currentCategory + '|' + (document.documentElement.getAttribute('data-album') || '') + '|' +
+        filtered.map(m => `${m.id}|${m.title}|${m.desc || ''}|${m.date}|${m.category}|${(m.media || m.images || []).length}|${(m.media && m.media[0] && (m.media[0].thumbUrl || m.media[0].url)) || m.img || ''}`).join(',');
+      if (!force && sig === __memoriesRenderSig && grid.childElementCount > 0) return;
+      __memoriesRenderSig = sig;
 
       if (filtered.length === 0) {
         grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-tertiary);">등록된 사진이 없습니다. [+ 새 추억 사진 등록]을 눌러 첫 추억을 남겨보세요!</div>`;
@@ -3297,12 +3316,27 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       counterEl.style.display = 'block';
 
       const current = currentLightboxMedia[currentLightboxIndex];
+      const nativeVideo = document.getElementById('lightboxVideoEl');
+      const stopNativeVideo = () => { if (!nativeVideo) return; nativeVideo.pause(); nativeVideo.removeAttribute('src'); nativeVideo.load(); nativeVideo.style.display = 'none'; };
       if (current.type === 'video') {
         imgEl.style.display = 'none';
         imgEl.src = '';
-        videoEl.style.display = 'block';
-        videoEl.src = current.url;
+        // 재생 컨트롤이 하나만 보이도록, 가능하면 구글 드라이브 플레이어(iframe) 대신 브라우저 기본 플레이어로 재생한다.
+        // (드라이브 API 스트리밍이 허용된 경우에만 — 아니면 기존 iframe 플레이어로 자동 복귀)
+        const nativeUrl = (nativeVideo && current.fileId && driveMediaState.ok && !driveMediaState.bad.has(current.fileId)) ? driveMediaUrl(current.fileId) : null;
+        if (nativeUrl) {
+          videoEl.style.display = 'none'; videoEl.src = '';
+          nativeVideo.poster = current.thumbUrl || '';
+          nativeVideo.onerror = () => { driveMediaState.bad.add(current.fileId); stopNativeVideo(); videoEl.style.display = 'block'; videoEl.src = current.url; }; // 이 영상만 드라이브 플레이어로
+          nativeVideo.src = nativeUrl;
+          nativeVideo.style.display = 'block';
+        } else {
+          stopNativeVideo();
+          videoEl.style.display = 'block';
+          videoEl.src = current.url;
+        }
       } else {
+        stopNativeVideo();
         videoEl.style.display = 'none';
         videoEl.src = ''; // 페이지 이동 시 동영상 재생 중지
         imgEl.style.display = 'block';
@@ -3342,6 +3376,30 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       document.getElementById('lightboxModal').classList.remove('active');
       const videoEl = document.getElementById('lightboxVideo');
       if (videoEl) videoEl.src = ''; // 닫을 때 동영상 재생 중지
+      const nativeVideo = document.getElementById('lightboxVideoEl');
+      if (nativeVideo) { nativeVideo.pause(); nativeVideo.removeAttribute('src'); nativeVideo.load(); nativeVideo.style.display = 'none'; }
+    }
+
+    // ---- 동영상 직접 재생(브라우저 기본 플레이어) 가능 여부 ----
+    // 구글 드라이브의 다운로드 주소는 브라우저가 <video>로 재생을 거부하므로(첨부파일 응답),
+    // Drive API 스트리밍(파이어베이스 API 키 사용)이 열려 있을 때만 기본 플레이어를 쓴다. 사이트를 열 때 한 번 확인한다.
+    const driveMediaState = { ok: false, checked: false, bad: new Set() };
+    function driveMediaUrl(fileId) {
+      return 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media&key=' + encodeURIComponent(firebaseConfig.apiKey);
+    }
+    async function probeDriveMedia() {
+      if (driveMediaState.checked) return;
+      driveMediaState.checked = true;
+      try {
+        const cached = sessionStorage.getItem('drive_media_ok');
+        if (cached !== null) { driveMediaState.ok = cached === '1'; return; }
+        let sample = null;
+        GLOBAL_MEMORIES.some(m => (m.media || []).some(x => { if (x.type === 'video' && x.fileId) { sample = x; return true; } return false; }));
+        if (!sample || !firebaseConfig || !firebaseConfig.apiKey) return;
+        const r = await fetch(driveMediaUrl(sample.fileId), { headers: { Range: 'bytes=0-0' } });
+        driveMediaState.ok = r.ok || r.status === 206;
+        sessionStorage.setItem('drive_media_ok', driveMediaState.ok ? '1' : '0');
+      } catch (e) { driveMediaState.ok = false; }
     }
 
     // 라이트박스 손가락 제스처: 좌우로 밀면 사진 넘김, 사진 영역을 아래로 끌어내리면 닫힘
@@ -3354,6 +3412,7 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       function mediaEl() { return document.getElementById('lightboxImg').style.display !== 'none' ? document.getElementById('lightboxImg') : null; }
       box.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
+        if (e.target && e.target.tagName === 'VIDEO') { tracking = false; return; } // 기본 플레이어 조작(탐색바 등)은 방해하지 않는다
         startX = e.touches[0].clientX; startY = e.touches[0].clientY; dx = dy = 0; axis = null; tracking = true;
         box.style.transition = 'none'; content.style.transition = 'none';
       }, { passive: true });
@@ -3761,9 +3820,15 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
       return sender === 'Him' ? 'Her' : 'Him';
     }
 
-    function renderChatMessages() {
+    let __chatRenderSig = '';
+    function renderChatMessages(force) {
       const container = document.getElementById('chatMessagesList');
       if (!container) return;
+      // ⚡ 같은 내용이면 다시 그리지 않는다 (탭 전환·주기 동기화 때 불필요한 재렌더 제거)
+      const last = chatMessages[chatMessages.length - 1];
+      const sig = currentSender + '|' + chatMessages.length + '|' + (last ? last.id + ':' + (last.text || '').length : '') + '|' + JSON.stringify(chatReadReceipts) + '|' + (document.documentElement.getAttribute('data-chat') || '');
+      if (!force && sig === __chatRenderSig && container.childElementCount > 0) { scrollChatToBottom(); return; }
+      __chatRenderSig = sig;
       if (chatMessages.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-state-glyph">💬</div><div class="empty-state-title">여기는 아직 조용해요</div><div class="empty-state-desc">오늘 하루 어땠는지 한 줄 남겨보세요.\n먼저 말 거는 쪽이 항상 이깁니다.</div></div>`;
         return;
@@ -3934,6 +3999,7 @@ body[data-me="Her"] .identity-chip-dot { background:var(--chat-her); }
     loadNotes();
     loadMemoriesCache(); // 사이트를 열자마자 마지막으로 봤던 추억 사진첩을 0초로 먼저 그려준다
     renderMemories();
+    setTimeout(probeDriveMedia, 1500); // 동영상 기본 플레이어 사용 가능 여부를 미리 확인
     renderIdentityUI(); // 기기에 저장된 "이 기기의 주인"을 화면에 반영
     if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 600); // 처음 쓰는 기기면 먼저 누구 폰인지 고르게
     ensurePushRegistration(false).catch(() => {}); // 토큰이 바뀌었거나 주인이 바뀌었으면 서버 등록 갱신
