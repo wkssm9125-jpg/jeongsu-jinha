@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032153" />
+  <meta name="jj-version" content="202611032156" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1228,6 +1228,28 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 #toastMessage { overflow:hidden; text-overflow:ellipsis; }
 /* 사진 보기 화면에서 [삭제]를 눌렀을 때 확인창이 사진 뒤에 숨어서 안 보이던 문제 (z-index 2000 < 3000) */
 #deleteConfirmModal { z-index:3500; }
+
+/* ---------- 29. 상단바·하단 탭바 글씨 선명하게 (아이폰 홈 화면 앱) ----------
+   아이폰(WebKit)은 배경 흐림(backdrop-filter)이 걸린 요소 "안의 글씨"까지 같이 뿌옇게 그리는 경우가 있어서,
+   상단바의 "정수♥진하"·동기화 표시가 흐릿하게 보였다. 흐림 효과는 뒤쪽 가짜 층(::after)으로 옮기고
+   글씨는 그 위에 따로 그려서 선명하게 유지한다. */
+nav.apple-nav, .tabbar, .sidebar-nav {
+  background:transparent !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; isolation:isolate;
+}
+nav.apple-nav::after, .tabbar::after, .sidebar-nav::after {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; border-radius:inherit;
+  background:var(--nav-bg); backdrop-filter:var(--apple-blur); -webkit-backdrop-filter:var(--apple-blur);
+}
+/* 홈 화면 앱: 시계·배터리 영역까지 상단바 색으로 꽉 채워 뿌연 띠가 생기지 않게 */
+@media (display-mode: standalone) {
+  nav.apple-nav::after { background:var(--bg-primary); backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
+nav.apple-nav .nav-brand, nav.apple-nav .sync-status-badge { -webkit-font-smoothing:antialiased; }
+/* 홈 화면 앱에서 스크롤하면 내용이 시계·배터리 글씨 밑으로 비쳐 지저분해 보이던 것: 그 영역을 배경색으로 덮는다 */
+body::before {
+  content:""; position:fixed; top:0; left:0; right:0; height:env(safe-area-inset-top, 0px);
+  background:var(--bg-primary); z-index:1150; pointer-events:none;
+}
 
 /* ---------- 28. 사진 크게 보기 (확대/이동) ---------- */
 .photo-zoom-viewer { z-index:4000 !important; background:#000 !important; padding:0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
