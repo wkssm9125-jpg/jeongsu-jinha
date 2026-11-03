@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032239" />
+  <meta name="jj-version" content="202611032243" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -3756,24 +3756,16 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       const now = new Date();
       now.setHours(0, 0, 0, 0);
 
-      const milestones = [
-        { type: 'day', label: "100일", value: 100 },
-        { type: 'day', label: "200일", value: 200 },
-        { type: 'day', label: "300일", value: 300 },
-        { type: 'year', label: "1주년", value: 1 },
-        { type: 'day', label: "500일", value: 500 },
-        { type: 'year', label: "2주년", value: 2 },
-        { type: 'day', label: "1000일", value: 1000 },
-        { type: 'year', label: "3주년", value: 3 }
-      ];
+      // 100일 단위 + 매년 주년을 날짜순으로 만들고, 지난 기념일은 빼고 다가오는 것만 8개 보여준다
+      const milestones = [];
+      for (let d = 100; d <= 20000; d += 100) milestones.push({ type: 'day', label: d + "일", value: d });
+      for (let y = 1; y <= 60; y++) milestones.push({ type: 'year', label: y + "주년", value: y });
+      const msDate = m => m.type === 'year' ? new Date(sYear + m.value, sMonth - 1, sDay, 0, 0, 0) : new Date(sYear, sMonth - 1, sDay + m.value - 1, 0, 0, 0);
+      const upcoming = milestones.filter(m => msDate(m).getTime() >= now.getTime())
+        .sort((x, y) => msDate(x) - msDate(y)).slice(0, 8);
 
-      document.getElementById("anniversaryGrid").innerHTML = milestones.map(m => {
-        let targetDate;
-        if (m.type === 'year') {
-          targetDate = new Date(sYear + m.value, sMonth - 1, sDay, 0, 0, 0);
-        } else {
-          targetDate = new Date(start.getTime() + (m.value - 1) * (24 * 60 * 60 * 1000));
-        }
+      document.getElementById("anniversaryGrid").innerHTML = upcoming.map(m => {
+        const targetDate = msDate(m);
 
         const diffTime = targetDate.getTime() - now.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
