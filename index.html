@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032159" />
+  <meta name="jj-version" content="202611032204" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1336,6 +1336,157 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 #tabChat, #tabSettings { position:relative; }
 #tabChat .nav-settings-badge, #tabSettings .nav-settings-badge { top:4px; left:50%; transform:translateX(4px); }
 /* 사진 보기: 원본으로 바뀔 때 깜빡임 없이 */
+
+/* =========================================================================
+   30. 윈도우 98 테마 (data-theme="win98")
+   청록 바탕화면 · 회색 창 · 볼록/오목 입체 테두리 · 파란 제목 표시줄 · 작업 표시줄 · 도트 글꼴(Galmuri)
+   ========================================================================= */
+[data-theme="win98"] {
+  --bg-primary:#008080; --bg-card:#c0c0c0; --bg-card-hover:#d4d0c8;
+  --bg-glass:#ffffff; --border-card:#808080; --border-card-hover:#404040;
+  --text-primary:#000000; --text-secondary:#1a1a1a; --text-tertiary:#404040;
+  --accent-blue:#000080; --accent-pink:#000080; --accent-green:#008000; --accent-orange:#806000;
+  --accent-shadow:transparent;
+  --accent-gradient:linear-gradient(90deg,#000080,#1084d0);
+  --modal-bg:#c0c0c0; --nav-bg:#c0c0c0;
+  --hero-glow-1:transparent; --hero-glow-2:transparent;
+  --chat-him:#000080; --chat-her:#800080;
+  --font-family:"Galmuri11","Tahoma","MS Sans Serif","Apple SD Gothic Neo",sans-serif;
+  --w98-raised: inset -1px -1px #0a0a0a, inset 1px 1px #ffffff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  --w98-sunken: inset -1px -1px #ffffff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  --w98-title: linear-gradient(90deg,#000080,#1084d0);
+}
+[data-theme="win98"] body { background:#008080; color:#000; font-family:var(--font-family); letter-spacing:0; }
+[data-theme="win98"] *, [data-theme="win98"] *::before, [data-theme="win98"] *::after { border-radius:0 !important; }
+[data-theme="win98"] .hero-glow { display:none !important; }
+[data-theme="win98"] .heart, [data-theme="win98"] .lock-heart { color:#c00000 !important; }
+
+/* 창(카드) — 볼록한 회색 상자 */
+[data-theme="win98"] .hero-inner, [data-theme="win98"] .anniversary-grid, [data-theme="win98"] .qna-box,
+[data-theme="win98"] .bucket-card, [data-theme="win98"] .note-box, [data-theme="win98"] .memory-card,
+[data-theme="win98"] .settings-group, [data-theme="win98"] .settings-profile, [data-theme="win98"] .theme-card,
+[data-theme="win98"] .identity-card, [data-theme="win98"] .apple-modal, [data-theme="win98"] .lightbox-content,
+[data-theme="win98"] .lock-card, [data-theme="win98"] .chat-container {
+  background:#c0c0c0 !important; border:none !important; box-shadow:var(--w98-raised) !important;
+}
+[data-theme="win98"] .apple-modal, [data-theme="win98"] .lightbox-content { padding-top:0 !important; }
+[data-theme="win98"] .apple-modal::before, [data-theme="win98"] .lightbox-content::before {
+  /* 손잡이 대신 제목 표시줄 */
+  content:"정수♥진하" !important; display:block !important; width:auto !important; height:22px !important;
+  margin:3px -17px 12px !important; padding:0 6px !important; background:var(--w98-title) !important;
+  color:#fff; font-size:12px; font-weight:700; line-height:22px; text-align:left;
+}
+[data-theme="win98"] .modal-title { font-size:15px; }
+[data-theme="win98"] .modal-desc { color:#202020; }
+
+/* 홈 히어로 = 창 하나, 위쪽 글씨가 제목 표시줄 */
+[data-theme="win98"] .hero-inner { padding-top:0 !important; }
+[data-theme="win98"] .hero-eyebrow {
+  margin:3px -17px 14px; padding:0 8px; height:24px; line-height:24px; background:var(--w98-title);
+  color:#fff !important; font-weight:700; letter-spacing:0; font-size:12px;
+}
+[data-theme="win98"] .dday-num, [data-theme="win98"] .dday-unit { color:#000080 !important; -webkit-text-fill-color:#000080 !important; background:none !important; text-shadow:none !important; }
+[data-theme="win98"] .dday-card, [data-theme="win98"] .dday-container > * { background:#fff !important; box-shadow:var(--w98-sunken) !important; border:none !important; }
+[data-theme="win98"] .hero-title, [data-theme="win98"] .gradient-text { color:#000 !important; -webkit-text-fill-color:#000 !important; background:none !important; }
+
+/* 섹션 제목 = 작은 제목 표시줄 */
+[data-theme="win98"] .section-eyebrow { color:#000080; }
+[data-theme="win98"] .section-title { color:#fff !important; text-shadow:1px 1px 0 #000; }
+[data-theme="win98"] .section-desc { color:#e0f0f0 !important; }
+[data-theme="win98"] .memories-header .section-title, [data-theme="win98"] .settings-title { color:#fff !important; text-shadow:1px 1px 0 #000; }
+[data-theme="win98"] .settings-group-label { color:#fff !important; text-shadow:1px 1px 0 #000; }
+[data-theme="win98"] .chat-header .section-title { color:#000 !important; text-shadow:none; }
+[data-theme="win98"] .chat-header { background:var(--w98-title); }
+[data-theme="win98"] .chat-header .section-title { color:#fff !important; }
+
+/* 버튼 — 볼록, 누르면 오목 */
+[data-theme="win98"] button, [data-theme="win98"] .mood-tag, [data-theme="win98"] .category-btn,
+[data-theme="win98"] .btn-modal-save, [data-theme="win98"] .btn-modal-cancel, [data-theme="win98"] .btn-save-note,
+[data-theme="win98"] .btn-add-bucket, [data-theme="win98"] .btn-save-qna, [data-theme="win98"] .btn-add-memory,
+[data-theme="win98"] .btn-open-drive-main, [data-theme="win98"] .file-pick-btn, [data-theme="win98"] .lock-btn,
+[data-theme="win98"] .lock-user, [data-theme="win98"] .sync-status-badge, [data-theme="win98"] .identity-chip,
+[data-theme="win98"] .note-sender-change, [data-theme="win98"] .btn-refresh-q, [data-theme="win98"] .hero-edit-btn {
+  background:#c0c0c0 !important; color:#000 !important; border:none !important; box-shadow:var(--w98-raised) !important;
+  font-family:var(--font-family); font-weight:400 !important; text-shadow:none !important;
+}
+[data-theme="win98"] button:active, [data-theme="win98"] .mood-tag:active, [data-theme="win98"] .category-btn:active,
+[data-theme="win98"] .mood-tag.active, [data-theme="win98"] .category-btn.active, [data-theme="win98"] .lock-user.active,
+[data-theme="win98"] .theme-card.active, [data-theme="win98"] .identity-card.active {
+  box-shadow:var(--w98-sunken) !important; transform:none !important; background:#d4d0c8 !important;
+}
+[data-theme="win98"] .btn-modal-save, [data-theme="win98"] .btn-save-note, [data-theme="win98"] .btn-add-memory,
+[data-theme="win98"] .lock-btn, [data-theme="win98"] .btn-add-bucket {
+  outline:1px solid #000; outline-offset:-1px; font-weight:700 !important; /* 기본 버튼(Enter) 표시 */
+}
+[data-theme="win98"] .sync-status-badge.synced { color:#008000 !important; }
+[data-theme="win98"] .sync-status-badge.error { color:#c00000 !important; }
+
+/* 입력칸 — 오목한 흰 칸 */
+[data-theme="win98"] input:not([type="range"]):not([type="file"]), [data-theme="win98"] textarea, [data-theme="win98"] select,
+[data-theme="win98"] .memory-input-control, [data-theme="win98"] .note-textarea, [data-theme="win98"] .qna-input,
+[data-theme="win98"] .bucket-input, [data-theme="win98"] .lock-input {
+  background:#fff !important; color:#000 !important; border:none !important; box-shadow:var(--w98-sunken) !important;
+  font-family:var(--font-family);
+}
+[data-theme="win98"] input::placeholder, [data-theme="win98"] textarea::placeholder { color:#808080 !important; }
+[data-theme="win98"] input[type="date"]::-webkit-calendar-picker-indicator { filter:none !important; }
+
+/* 상단바 = 창 메뉴줄, 하단 탭바 = 작업 표시줄 */
+[data-theme="win98"] nav.apple-nav::after, [data-theme="win98"] .tabbar::after, [data-theme="win98"] .sidebar-nav::after {
+  background:#c0c0c0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; box-shadow:var(--w98-raised);
+}
+[data-theme="win98"] .nav-brand { color:#000; }
+[data-theme="win98"] .tabbar { border-top:none !important; }
+[data-theme="win98"] .tabbar-btn { color:#000 !important; margin:2px; box-shadow:var(--w98-raised) !important; background:#c0c0c0 !important; }
+[data-theme="win98"] .tabbar-btn.active { box-shadow:var(--w98-sunken) !important; background:repeating-conic-gradient(#c0c0c0 0% 25%, #dcdcdc 0% 50%) 50% / 2px 2px !important; font-weight:700; }
+[data-theme="win98"] #tabHome .tabbar-label::before { content:""; }
+[data-theme="win98"] .sidebar-nav-btn { color:#000 !important; }
+[data-theme="win98"] .sidebar-nav-btn.active { background:#000080 !important; color:#fff !important; }
+[data-theme="win98"] .sidebar-foot, [data-theme="win98"] .sidebar-brand { color:#000; }
+
+/* 목록·항목 */
+[data-theme="win98"] .anniversary-card, [data-theme="win98"] .bucket-item, [data-theme="win98"] .nav-settings-item { border-color:#808080 !important; color:#000; }
+[data-theme="win98"] .nav-settings-item:active { background:#000080 !important; color:#fff !important; }
+[data-theme="win98"] .anni-dday { color:#000080 !important; }
+[data-theme="win98"] .qna-person-card, [data-theme="win98"] .note-item { background:#fff !important; box-shadow:var(--w98-sunken) !important; border:none !important; }
+[data-theme="win98"] .progress-bar-bg { background:#fff !important; box-shadow:var(--w98-sunken) !important; padding:2px; }
+[data-theme="win98"] .progress-bar-fill { background:repeating-linear-gradient(90deg,#000080 0 8px,transparent 8px 10px) !important; box-shadow:none !important; }
+[data-theme="win98"] .bucket-checkbox { background:#fff !important; box-shadow:var(--w98-sunken) !important; border:none !important; color:#000 !important; }
+[data-theme="win98"] .memory-card-title { color:#000; }
+[data-theme="win98"] .memory-card-desc, [data-theme="win98"] .memory-card-footer { color:#303030 !important; }
+[data-theme="win98"] .memory-tag-badge, [data-theme="win98"] .photo-count-badge { background:#ffffe1 !important; color:#000 !important; border:1px solid #000 !important; backdrop-filter:none !important; }
+[data-theme="win98"] .theme-glyph, [data-theme="win98"] .theme-color-dot { box-shadow:var(--w98-sunken) !important; background-color:#fff; }
+
+/* 채팅 */
+[data-theme="win98"] .chat-messages { background:#fff; box-shadow:var(--w98-sunken); margin:4px; }
+[data-theme="win98"] .chat-bubble { border:1px solid #000 !important; box-shadow:2px 2px 0 rgba(0,0,0,.35) !important; }
+[data-theme="win98"] .chat-bubble.sender-him { background:#000080 !important; color:#fff !important; }
+[data-theme="win98"] .chat-bubble.sender-her { background:#ffffe1 !important; color:#000 !important; }
+[data-theme="win98"] .chat-bubble::before, [data-theme="win98"] .chat-bubble::after { display:none !important; }
+[data-theme="win98"] .chat-day-divider span { background:#c0c0c0 !important; color:#000 !important; box-shadow:var(--w98-raised); }
+[data-theme="win98"] .chat-bubble-meta, [data-theme="win98"] .chat-sending { color:#404040 !important; }
+[data-theme="win98"] .chat-input-area { background:#c0c0c0 !important; border-top:none !important; }
+[data-theme="win98"] .chat-unread-badge { color:#000080 !important; }
+
+/* 알림 토스트 = 노란 풍선 도움말 */
+[data-theme="win98"] .apple-toast { background:#ffffe1 !important; color:#000 !important; border:1px solid #000 !important; box-shadow:2px 2px 0 rgba(0,0,0,.5) !important; }
+[data-theme="win98"] .nav-settings-badge, [data-theme="win98"] .sidebar-nav-badge { background:#c00000 !important; }
+
+/* 잠금 화면 = 로그온 창 */
+[data-theme="win98"] .lock-screen { background:#008080 !important; background-image:none !important; }
+[data-theme="win98"] .lock-card { padding:0 16px 16px; }
+[data-theme="win98"] .lock-card::before { content:"정수♥진하에 로그온"; display:block; margin:3px -13px 14px; padding:0 8px; height:24px; line-height:24px; background:var(--w98-title); color:#fff; font-size:12px; font-weight:700; text-align:left; }
+[data-theme="win98"] .lock-title, [data-theme="win98"] .lock-sub { color:#000 !important; }
+[data-theme="win98"] .lock-error { color:#c00000 !important; }
+
+/* 사진 보기 / 오버레이 */
+[data-theme="win98"] .modal-overlay, [data-theme="win98"] .lightbox-overlay:not(.photo-zoom-viewer) { background:rgba(0,0,0,.35) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+[data-theme="win98"] .lightbox-slider-box { box-shadow:var(--w98-sunken); }
+[data-theme="win98"] .lightbox-title, [data-theme="win98"] .lightbox-desc, [data-theme="win98"] .lightbox-meta { color:#000 !important; }
+
+/* PC 스크롤바도 98 스타일 */
+[data-theme="win98"] ::-webkit-scrollbar { width:16px; height:16px; background:repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 50% / 2px 2px; }
+[data-theme="win98"] ::-webkit-scrollbar-thumb { background:#c0c0c0; box-shadow:var(--w98-raised); }
   </style>
 </head>
 <body>
@@ -1980,6 +2131,13 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           <div class="theme-card-info">
             <h5>선셋 골드</h5>
             <p>따스한 석양 앰버</p>
+          </div>
+        </div>
+        <div class="theme-card" id="theme-win98" style="grid-column: 1 / -1;" onclick="setTheme('win98')">
+          <div class="theme-color-dot" style="background: linear-gradient(135deg, #008080 0 50%, #c0c0c0 50% 100%); border: 1px solid #808080;"></div>
+          <div class="theme-card-info">
+            <h5>윈도우 98</h5>
+            <p>청록 바탕화면 · 회색 창 · 도트 글꼴</p>
           </div>
         </div>
         <div class="theme-card" id="theme-light" style="grid-column: 1 / -1;" onclick="setTheme('light')">
@@ -2877,7 +3035,17 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     // 4. 테마 시스템
     // 테마는 기기별 설정이라 클라우드에 저장할 필요가 없다 (예전엔 바꿀 때마다 전체 데이터를 저장하고,
     // 그 때문에 25초 동안 상대방 소식 알림까지 숨겨졌다)
+    // 윈도우 98 테마용 도트 글꼴(Galmuri, 무료 OFL)은 그 테마를 고른 기기에서만 받는다
+    function ensureThemeFont(name) {
+      if (name !== 'win98' || document.getElementById('galmuriFont')) return;
+      const l = document.createElement('link');
+      l.id = 'galmuriFont'; l.rel = 'stylesheet';
+      l.href = 'https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css';
+      document.head.appendChild(l);
+    }
+    const THEME_STATUS_COLOR = { light: '#f5f5f7', win98: '#008080' };
     function setTheme(themeName) {
+      ensureThemeFont(themeName);
       document.documentElement.setAttribute("data-theme", themeName);
       localStorage.setItem("couple_theme", themeName);
 
@@ -2885,13 +3053,15 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const activeCard = document.getElementById(`theme-${themeName}`);
       if (activeCard) activeCard.classList.add("active");
       const tc = document.querySelector('meta[name="theme-color"]');
-      if (tc) tc.setAttribute('content', themeName === 'light' ? '#f5f5f7' : '#000000');
+      if (tc) tc.setAttribute('content', THEME_STATUS_COLOR[themeName] || '#000000');
 
       showToast(`테마가 변경되었습니다!`, "🎨");
     }
 
     function loadTheme() {
       const savedTheme = localStorage.getItem("couple_theme") || "midnight";
+      ensureThemeFont(savedTheme);
+      { const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', THEME_STATUS_COLOR[savedTheme] || '#000000'); }
       document.documentElement.setAttribute("data-theme", savedTheme);
       document.querySelectorAll(".theme-card").forEach(c => c.classList.remove("active"));
       const activeCard = document.getElementById(`theme-${savedTheme}`);
@@ -5417,7 +5587,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         var el = document.getElementById(map[kind]);
         if (el && found) el.innerText = found.name;
       });
-      var themeNames = { midnight:'미드나잇 다크', rose:'로맨틱 로즈', lavender:'라벤더 나이트', ocean:'오션 브리즈', forest:'포레스트 민트', sunset:'선셋 골드', light:'퓨어 애플 라이트' };
+      var themeNames = { midnight:'미드나잇 다크', rose:'로맨틱 로즈', lavender:'라벤더 나이트', ocean:'오션 브리즈', forest:'포레스트 민트', sunset:'선셋 골드', light:'퓨어 애플 라이트', win98:'윈도우 98' };
       var tEl = document.getElementById('settingsThemeState');
       if (tEl) tEl.innerText = themeNames[document.documentElement.getAttribute('data-theme')] || '미드나잇 다크';
     }
