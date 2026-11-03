@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032156" />
+  <meta name="jj-version" content="202611032159" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -769,6 +769,9 @@ section.app-section { width:100%; max-width:560px; margin:0 auto; padding:20px v
   text-align:left; box-shadow:0 -20px 50px rgba(0,0,0,.5);
   animation:sheetUp .3s var(--ease);
 }
+/* 창 안에서 끝까지 스크롤해도 뒤 화면이 같이 움직이지 않게 */
+.apple-modal, .lightbox-content { overscroll-behavior:contain; touch-action:pan-y; }
+.sheet-dragging { transition:none !important; animation:none !important; }
 .apple-modal::before, .lightbox-content::before {
   content:""; display:block; width:38px; height:4px; border-radius:999px;
   background:var(--border-card-hover); margin:0 auto 16px;
@@ -5635,6 +5638,89 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
        예전엔 사진 보기나 설정 창이 열린 상태에서 안드로이드 뒤로가기(또는 아이폰 스와이프)를 하면
        창이 닫히는 게 아니라 사이트 자체가 꺼져 버렸다. 창이 열려 있는 동안 히스토리에 자리 하나를 만들어
        두고, 뒤로가기가 오면 맨 위 창만 닫는다. */
+    /* ---- 아래로 밀어서 창 닫기 + 창이 열려 있는 동안 뒤 화면 고정 ----
+       · 창(바텀시트)의 손잡이 부분이나, 창 내용이 맨 위까지 올라가 있을 때 아래로 끌면 따라 내려오고
+         충분히 내리거나 빠르게 튕기면 닫힌다.
+       · 창이 열려 있는 동안 뒤 화면(body)을 고정해서, 스와이프해도 뒤 페이지가 스크롤되지 않는다. */
+    (function setupSheetGestures() {
+      var OPEN_SEL = '.modal-overlay.active, .lightbox-overlay.active';
+      var locked = false, savedY = 0;
+      function lockBody() {
+        if (locked) return; locked = true; savedY = window.scrollY || 0;
+        var b = document.body.style;
+        b.position = 'fixed'; b.top = (-savedY) + 'px'; b.left = '0'; b.right = '0'; b.width = '100%';
+      }
+      function unlockBody() {
+        if (!locked) return; locked = false;
+        var b = document.body.style;
+        b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = '';
+        window.scrollTo(0, savedY);
+      }
+      function syncLock() { if (document.querySelector(OPEN_SEL)) lockBody(); else unlockBody(); }
+      var overlays = document.querySelectorAll('.modal-overlay, .lightbox-overlay');
+      var mo = new MutationObserver(syncLock);
+      overlays.forEach(function (el) { mo.observe(el, { attributes: true, attributeFilter: ['class'] }); });
+
+      function closeOverlay(ov) {
+        var id = ov.id;
+        var fn = (typeof ESC_CLOSABLE_MODALS !== 'undefined' && ESC_CLOSABLE_MODALS[id]) || (id === 'layoutModal' ? closeLayoutModal : null);
+        if (fn) fn(); else ov.classList.remove('active');
+      }
+      var NO_DRAG = 'input, textarea, select, .apple-range-slider, .lightbox-slider-box, .dpad-container, .file-preview-strip, .edit-photos-preview-strip, .lightbox-thumbnails-strip, .pz-stage';
+      document.querySelectorAll('.modal-overlay > .apple-modal, .lightbox-overlay > .lightbox-content').forEach(function (sheet) {
+        var ov = sheet.parentElement;
+        var y0 = 0, x0 = 0, t0 = 0, dy = 0, mode = null, fromHandle = false;
+        sheet.addEventListener('touchstart', function (e) {
+          if (e.touches.length !== 1) { mode = null; return; }
+          var t = e.target;
+          if (t && t.closest && t.closest(NO_DRAG)) { mode = 'skip'; return; }
+          var r = sheet.getBoundingClientRect();
+          y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; t0 = Date.now(); dy = 0;
+          fromHandle = (y0 - r.top) < 44;              // 맨 위 손잡이 부근
+          mode = (fromHandle || sheet.scrollTop <= 0) ? 'maybe' : 'skip';
+        }, { passive: true });
+        sheet.addEventListener('touchmove', function (e) {
+          if (mode === 'skip' || mode === null) return;
+          var y = e.touches[0].clientY, x = e.touches[0].clientX;
+          dy = y - y0;
+          if (mode === 'maybe') {
+            if (Math.abs(dy) < 8 && Math.abs(x - x0) < 8) return;
+            // 아래 방향 세로 드래그일 때만 (위로 올리면 원래대로 창 안을 스크롤)
+            if (dy > 0 && Math.abs(dy) > Math.abs(x - x0) && (fromHandle || sheet.scrollTop <= 0)) { mode = 'drag'; sheet.classList.add('sheet-dragging'); }
+            else { mode = 'skip'; return; }
+          }
+          if (mode === 'drag') {
+            if (e.cancelable) e.preventDefault();
+            var d = Math.max(0, dy);
+            sheet.style.transform = 'translateY(' + d + 'px)';
+            ov.style.backgroundColor = 'rgba(0,0,0,' + Math.max(0.1, 0.55 * (1 - d / 500)) + ')';
+          }
+        }, { passive: false });
+        function end() {
+          if (mode !== 'drag') { mode = null; return; }
+          mode = null;
+          sheet.classList.remove('sheet-dragging');
+          var v = dy / Math.max(1, Date.now() - t0); // px/ms
+          var shouldClose = dy > 110 || (dy > 40 && v > 0.6);
+          sheet.style.transition = 'transform .22s ease';
+          if (shouldClose) {
+            sheet.style.transform = 'translateY(100%)';
+            setTimeout(function () {
+              closeOverlay(ov);
+              sheet.style.transition = ''; sheet.style.transform = ''; ov.style.backgroundColor = '';
+              // 닫을 수 없는 창(처음 계정 고르기 등)이면 제자리로
+              if (ov.classList.contains('active')) { sheet.style.transition = 'transform .22s ease'; sheet.style.transform = ''; }
+            }, 200);
+          } else {
+            sheet.style.transform = ''; ov.style.backgroundColor = '';
+            setTimeout(function () { sheet.style.transition = ''; }, 240);
+          }
+        }
+        sheet.addEventListener('touchend', end, { passive: true });
+        sheet.addEventListener('touchcancel', end, { passive: true });
+      });
+    })();
+
     (function setupBackButtonForModals() {
       var SEL = '.modal-overlay.active, .lightbox-overlay.active';
       var guardActive = false, ignorePop = false, backTimer = null;
