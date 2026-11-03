@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032207" />
+  <meta name="jj-version" content="202611032211" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1490,6 +1490,55 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 /* PC 스크롤바도 98 스타일 */
 [data-theme="win98"] ::-webkit-scrollbar { width:16px; height:16px; background:repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 50% / 2px 2px; }
 [data-theme="win98"] ::-webkit-scrollbar-thumb { background:#c0c0c0; box-shadow:var(--w98-raised); }
+
+/* =========================================================================
+   31. 각진 모서리 · 선 없는 레이아웃 (윈도우 98을 뺀 모든 테마)
+   · 둥근 모서리를 전부 직각으로
+   · 테두리·구분선을 없애고, 영역 구분은 배경색 차이와 여백으로
+   · "선택됨" 표시는 테두리 대신 강조색 배경으로
+   ========================================================================= */
+html:not([data-theme="win98"]) *,
+html:not([data-theme="win98"]) *::before,
+html:not([data-theme="win98"]) *::after {
+  border-radius:0 !important;
+  border-color:transparent !important; /* 굵기는 그대로 두고 색만 지워서 크기·배치가 흔들리지 않게 */
+}
+/* 남은 선 모양 요소들 */
+html:not([data-theme="win98"]) .chat-day-divider { justify-content:center; }
+html:not([data-theme="win98"]) .chat-day-divider::before,
+html:not([data-theme="win98"]) .chat-day-divider::after { display:none !important; }
+html:not([data-theme="win98"]) .theme-color-dot { box-shadow:none !important; }
+html:not([data-theme="win98"]) .apple-modal,
+html:not([data-theme="win98"]) .lightbox-content { box-shadow:0 -12px 40px rgba(0,0,0,.35); }
+
+/* 밑줄만 있던 문답 입력칸 → 배경이 있는 칸으로 (선이 없어지면 안 보이므로) */
+html:not([data-theme="win98"]) .qna-input { background:var(--bg-card) !important; padding:10px 12px !important; }
+
+/* 입력칸에 들어가 있을 때: 테두리 대신 배경을 살짝 밝게 */
+html:not([data-theme="win98"]) input:focus, html:not([data-theme="win98"]) textarea:focus,
+html:not([data-theme="win98"]) select:focus { background:var(--bg-card-hover) !important; caret-color:var(--accent-pink); }
+
+/* 선택됨 표시: 테두리 대신 강조색 배경 */
+html:not([data-theme="win98"]) .theme-card.active { background:color-mix(in srgb, var(--accent-pink) 20%, var(--bg-card)) !important; }
+html:not([data-theme="win98"]) .identity-card.active.him,
+html:not([data-theme="win98"]) .lock-user.active.him { background:color-mix(in srgb, var(--chat-him) 24%, var(--bg-card)) !important; }
+html:not([data-theme="win98"]) .identity-card.active.her,
+html:not([data-theme="win98"]) .lock-user.active.her { background:color-mix(in srgb, var(--chat-her) 24%, var(--bg-card)) !important; }
+html:not([data-theme="win98"]) .thumb-preview-item { opacity:.45; }
+html:not([data-theme="win98"]) .thumb-preview-item.active { opacity:1; }
+html:not([data-theme="win98"]) .file-pick-btn.has-files { background:color-mix(in srgb, var(--accent-pink) 16%, var(--bg-glass)) !important; }
+html:not([data-theme="win98"]) .sync-status-badge.error { background:color-mix(in srgb, var(--accent-pink) 18%, var(--bg-card)) !important; }
+
+/* 정수/진하 색 막대(왼쪽 선) 대신 살짝 물든 배경 */
+html:not([data-theme="win98"]) .qna-person-card { background:color-mix(in srgb, var(--chat-him) 12%, var(--bg-glass)) !important; }
+html:not([data-theme="win98"]) .qna-person-card:nth-child(2) { background:color-mix(in srgb, var(--chat-her) 12%, var(--bg-glass)) !important; }
+html:not([data-theme="win98"]) .note-item { background:color-mix(in srgb, var(--chat-her) 12%, var(--bg-glass)) !important; }
+html:not([data-theme="win98"]) .note-item.blue { background:color-mix(in srgb, var(--chat-him) 12%, var(--bg-glass)) !important; }
+
+/* 선이 빠진 목록은 칸 사이 여백으로 구분 */
+/* (2px 틈은 가는 선처럼 보여서 쓰지 않는다: 한 덩어리로 두거나, 확실한 여백으로 띄운다) */
+html:not([data-theme="win98"]) .bucket-list { display:flex; flex-direction:column; gap:6px; }
+html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); padding:4px 12px !important; }
   </style>
 </head>
 <body>
