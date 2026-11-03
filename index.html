@@ -18,6 +18,8 @@
     } catch (e) {}
   </script>
   <meta name="theme-color" content="#000000" />
+  <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
+  <meta name="jj-version" content="202611032148" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -5130,11 +5132,55 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const regSW = () => navigator.serviceWorker.register('./firebase-messaging-sw.js').catch(() => {});
       if (document.readyState === 'complete') setTimeout(regSW, 1500);
       else window.addEventListener('load', () => setTimeout(regSW, 1500));
+      // ⚡ 새 버전 적용
+      //  · 새 버전이 확인되면 안내를 띄우고, 누르면 바로 적용
+      //  · 안 눌러도: 앱을 막 연 직후(아직 아무것도 안 만졌을 때)나, 다른 앱에 갔다가 돌아올 때 자동으로 적용
+      //    (쓰던 글이 있거나 창이 열려 있거나 저장 중이면 날아가지 않게 기다린다)
+      const APP_VERSION = (document.querySelector('meta[name="jj-version"]') || {}).content || '';
+      let __updateReady = '';
+      let __userTouched = false;
+      ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => { __userTouched = true; }, { once: true, passive: true }));
+      const safeToReload = () => {
+        if (document.querySelector('.modal-overlay.active, .lightbox-overlay.active')) return false;
+        const a = document.activeElement;
+        if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return false;
+        // 화면에 보이는 입력칸에 쓰던 글이 있으면 기다린다 (숨겨진 칸·잠금 화면 칸은 제외)
+        const typed = Array.from(document.querySelectorAll('textarea, input[type="text"], input:not([type])'))
+          .some(el => el.value && el.value.trim() && el.getClientRects().length > 0 && !el.closest('#lockScreen') && el.type !== 'hidden');
+        if (typed) return false;
+        if (typeof hasPendingSync === 'function' && hasPendingSync()) return false;
+        if (typeof __uploadsInProgress !== 'undefined' && __uploadsInProgress > 0) return false;
+        return true;
+      };
+      const applyUpdate = () => {
+        try { sessionStorage.setItem('jj_updated_to', __updateReady || ''); } catch (e) {}
+        navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}).finally(() => location.reload());
+      };
       navigator.serviceWorker.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'jj-update-available') {
-          showToast('새 버전이 준비됐어요 · 눌러서 적용', '✨', 8000, () => location.reload());
-        }
+        if (!e.data || e.data.type !== 'jj-update-available') return;
+        const v = e.data.version || '';
+        if (v && APP_VERSION && v <= APP_VERSION) return; // 이미 그 버전이거나 더 최신
+        __updateReady = v || 'new';
+        if (!__userTouched && performance.now() < 6000 && safeToReload()) { applyUpdate(); return; } // 막 연 참이면 바로
+        showToast('새 버전이 준비됐어요 · 눌러서 적용', '✨', 8000, applyUpdate);
       });
+      let __hiddenAt = 0;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') { __hiddenAt = Date.now(); return; }
+        // 돌아왔을 때: 준비된 새 버전이 있으면 적용, 없으면 한 번 확인 요청
+        if (__updateReady && Date.now() - __hiddenAt > 3000 && safeToReload()) { applyUpdate(); return; }
+        askForUpdate();
+      });
+      // 화면이 직접 "더 새 버전 있어?"라고 물어본다 (열 때 1번, 돌아올 때마다)
+      function askForUpdate() {
+        const c = navigator.serviceWorker.controller;
+        if (c) c.postMessage({ type: 'jj-check-update', version: APP_VERSION });
+      }
+      navigator.serviceWorker.ready.then(() => setTimeout(askForUpdate, 800)).catch(() => {});
+      try {
+        const done = sessionStorage.getItem('jj_updated_to');
+        if (done) { sessionStorage.removeItem('jj_updated_to'); setTimeout(() => showToast('새 버전으로 업데이트됐어요', '✨', 2500), 800); }
+      } catch (e) {}
     }
   </script>
   <!-- 레이아웃 테마 시트 -->

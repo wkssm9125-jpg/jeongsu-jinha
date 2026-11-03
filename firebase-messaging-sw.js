@@ -120,30 +120,61 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
-async function notifyClientsUpdated() {
+async function notifyClientsUpdated(version) {
   const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  list.forEach((c) => c.postMessage({ type: "jj-update-available" }));
+  list.forEach((c) => c.postMessage({ type: "jj-update-available", version: version || "" }));
 }
 
+// 화면 파일 안의 <meta name="jj-version" content="..."> 로 버전을 비교한다.
+// (GitHub Pages는 여러 서버에 복사본을 두고 최대 10분쯤 예전 복사본을 줄 수 있어서, 비교 없이 덮어쓰면
+//  새 버전을 받았다가 다시 예전 버전으로 되돌아가는 일이 생겼다 → 더 높은 버전일 때만 저장)
+async function versionOf(res) {
+  try { const t = await res.clone().text(); const m = t.match(/<meta name="jj-version" content="([^"]+)"/); return m ? m[1] : ""; }
+  catch (e) { return ""; }
+}
+let lastNotified = "";
+async function fetchLatestShell() {
+  // 주소 뒤에 매번 다른 값을 붙여 중간 서버(CDN)의 예전 복사본을 건너뛰고 최신 파일을 받는다
+  const res = await fetch(SCOPE_URL + "?_sw=" + Date.now(), { cache: "no-store" });
+  if (!res || !res.ok || res.type !== "basic") throw new Error("shell fetch " + (res && res.status));
+  return res;
+}
+async function refreshShell(cached) {
+  const cache = await caches.open(SHELL_CACHE);
+  const res = await fetchLatestShell();
+  const newV = await versionOf(res);
+  const oldV = cached ? await versionOf(cached) : "";
+  if (!cached || !oldV || (newV && newV > oldV)) {
+    await cache.put("./", res.clone());
+    if (cached && newV && newV !== lastNotified) { lastNotified = newV; notifyClientsUpdated(newV); }
+  }
+  return res;
+}
 async function handleNavigation(event) {
   const cache = await caches.open(SHELL_CACHE);
   const cached = await cache.match("./");
-  const network = fetch(event.request.url.split("?")[0].split("#")[0], { cache: "no-cache" }).then(async (res) => {
-    if (res && res.ok && res.type === "basic") {
-      const fresh = res.clone();
-      const oldTag = cached ? (cached.headers.get("etag") || cached.headers.get("last-modified")) : null;
-      const newTag = res.headers.get("etag") || res.headers.get("last-modified");
-      await cache.put("./", fresh);
-      if (cached && oldTag && newTag && oldTag !== newTag) notifyClientsUpdated();
-    }
-    return res;
-  });
   if (cached) {
-    event.waitUntil(network.catch(() => {}));
+    // 화면에 돌려줄 응답과 버전 비교용 응답을 따로 둔다 (같은 응답을 두 번 읽으면 비교가 실패해 예전 버전으로 덮어쓰였다)
+    const forCheck = cached.clone();
+    event.waitUntil(refreshShell(forCheck).catch(() => {}));
     return cached;
   }
-  try { return await network; } catch (e) { return Response.error(); }
+  try { return await refreshShell(null); }
+  catch (e) { try { return await fetch(event.request); } catch (e2) { return Response.error(); } }
 }
+// 화면이 "업데이트 확인해 줘"라고 하면 (앱으로 돌아왔을 때 등) 바로 확인
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "jj-check-update") return;
+  const clientV = event.data.version || "";
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    try { await refreshShell(await cache.match("./")); } catch (e) {}
+    const latest = await cache.match("./");
+    const v = latest ? await versionOf(latest) : "";
+    // 지금 화면보다 새 버전이 저장돼 있으면 그 화면에 알려준다
+    if (v && clientV && v > clientV && event.source) event.source.postMessage({ type: "jj-update-available", version: v });
+  })());
+});
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
