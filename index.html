@@ -260,7 +260,8 @@ section.hero {
   border:2px solid var(--border-card); display:flex; align-items:center; justify-content:center; transition:.25s;
 }
 .couple-photo-wrapper:active .couple-photo-frame { transform:scale(.95); }
-#couplePhotoImg { position:absolute; width:100%; height:100%; object-fit:cover; transform-origin:center center; pointer-events:none; }
+/* 설정 화면 프로필 사진도 같은 규칙 (예전엔 빠져 있어서 원본 크기 그대로 들어가 갈색 부분만 보였다) */
+#couplePhotoImg, #couplePhotoImgSettings { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform-origin:center center; pointer-events:none; }
 .couple-photo-placeholder { display:flex; flex-direction:column; align-items:center; color:var(--text-tertiary); }
 .photo-icon { font-size:15px; }
 .photo-text { font-size:8px; font-weight:600; font-family:var(--font-mono); }
@@ -3256,6 +3257,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       if (saved) {
         img.src = fastImg(saved);
         applyPhotoTransform(img, settings);
+        if (typeof syncSettingsPhoto === 'function') setTimeout(syncSettingsPhoto, 0);
         img.style.display = 'block';
         placeholder.style.display = 'none';
       } else {
