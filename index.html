@@ -4,13 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>정수와진하</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" rel="stylesheet">
-  <!-- 진짜 웹 푸시 알림(Firebase Cloud Messaging)에 필요한 SDK. Netlify 등 독립 도메인에 올렸을 때만
-       서비스워커 등록이 가능하므로, 구글 사이트 임베드 안에서는 알림 켜기 버튼을 눌러도 동작하지 않는다. -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+  <meta name="theme-color" content="#000000" />
+  <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="정수♥진하" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <!-- ⚡ 첫 화면 속도: 서버/폰트/사진 주소에 미리 연결해 둔다 -->
+  <link rel="preconnect" href="https://script.google.com" />
+  <link rel="preconnect" href="https://script.googleusercontent.com" />
+  <link rel="preconnect" href="https://drive.google.com" />
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <!-- ⚡ 폰트: 예전엔 2MB짜리 전체 폰트 파일을 통째로 받았다. 실제로 화면에 쓰인 글자 조각만 받는
+       dynamic-subset 버전으로 바꾸고, 폰트를 받는 동안에도 화면이 먼저 그려지도록 비차단으로 불러온다. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" /></noscript>
+  <!-- ⚡ Firebase(푸시 알림) SDK는 첫 화면을 막지 않도록 head에서 제거하고, 알림을 켠 기기에서만
+       필요할 때 loadFirebaseSdk()로 뒤늦게 불러온다. -->
   <style>
 /* =========================================================================
    정수와진하 — 리디자인 스타일시트 (index.html의 <style> 블록 전체 교체용)
@@ -1177,11 +1191,34 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
+
+/* ---------- 25. 사용성 개선 (2026-11) ---------- */
+/* 눌러서 이동할 수 있는 토스트 (예: 새 메시지 → 채팅) */
+.apple-toast.show.clickable { pointer-events:auto; cursor:pointer; }
+#toastMessage { overflow:hidden; text-overflow:ellipsis; }
+/* 사진 보기 화면에서 [삭제]를 눌렀을 때 확인창이 사진 뒤에 숨어서 안 보이던 문제 (z-index 2000 < 3000) */
+#deleteConfirmModal { z-index:3500; }
+.apple-toast.clickable::after { content:'›'; margin-left:8px; opacity:.6; font-size:16px; }
+/* 채팅 전송 상태 */
+.chat-sending { font-size:10.5px; color:var(--text-tertiary); opacity:.85; }
+.chat-fail-btn {
+  background:none; border:none; padding:0; margin:0; cursor:pointer;
+  color:var(--accent-pink); font-size:11px; font-weight:700; font-family:inherit;
+}
+/* 문답: 몇 번째 질문인지 */
+.qna-counter { opacity:.6; font-weight:600; margin-left:4px; font-size:.9em; }
+/* 문답: 내 계정이 정해진 기기에서는 상대 칸 입력창을 숨긴다 */
+body[data-identity="1"][data-me="Him"] #herInputWrap,
+body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
+/* 채팅 탭 배지 자리 */
+#tabChat, #tabSettings { position:relative; }
+#tabChat .nav-settings-badge, #tabSettings .nav-settings-badge { top:4px; left:50%; transform:translateX(4px); }
+/* 사진 보기: 원본으로 바뀔 때 깜빡임 없이 */
   </style>
 </head>
 <body>
 
-  <div class="apple-toast" id="appleToast">
+  <div class="apple-toast" id="appleToast" onclick="onToastClick()" role="status" aria-live="polite">
     <span class="toast-icon" id="toastIcon">🔔</span>
     <span id="toastMessage">새로운 업데이트가 있습니다.</span>
   </div>
@@ -1212,6 +1249,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     </button>
     <button type="button" class="sidebar-nav-btn" data-page="chat" onclick="switchPage('chat')">
       <span class="tabbar-icon">💬</span><span>채팅</span>
+      <span class="sidebar-nav-badge" id="sidebarChatBadge"></span>
     </button>
     <button type="button" class="sidebar-nav-btn" data-page="settings" onclick="switchPage('settings')">
       <span class="tabbar-icon">⚙</span><span>설정</span>
@@ -1287,7 +1325,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       <div class="qna-box">
         <div class="qna-question">
           <div class="qna-question-title" id="qnaTitle">"오늘 하루 중 나를 가장 생각나게 했던 순간은 언제인가요?"</div>
-          <button class="btn-refresh-q" onclick="nextQuestion()">다른 질문 보기 ↺</button>
+          <button class="btn-refresh-q" onclick="nextQuestion()">다른 질문 보기 ↺ <span class="qna-counter" id="qnaCounter"></span></button>
         </div>
         <div class="qna-answers-grid">
           <div class="qna-person-card">
@@ -1295,7 +1333,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
               <div class="qna-person-header">정수</div>
               <div class="qna-text" id="hisAnswerText">아직 답변을 남기지 않았어요.</div>
             </div>
-            <div>
+            <div class="qna-input-wrap" id="hisInputWrap">
               <input type="text" class="qna-input" id="hisInput" placeholder="답변을 입력하세요..." onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) saveAnswer('his')" />
               <button class="btn-save-qna" onclick="saveAnswer('his')">저장</button>
             </div>
@@ -1305,7 +1343,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
               <div class="qna-person-header">진하</div>
               <div class="qna-text" id="herAnswerText">아직 답변을 남기지 않았어요.</div>
             </div>
-            <div>
+            <div class="qna-input-wrap" id="herInputWrap">
               <input type="text" class="qna-input" id="herInput" placeholder="답변을 입력하세요..." onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) saveAnswer('her')" />
               <button class="btn-save-qna" onclick="saveAnswer('her')">저장</button>
             </div>
@@ -1347,7 +1385,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
           <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">의 쪽지로 남겨져요</span>
           <button type="button" class="note-sender-change" onclick="openIdentityModal()">계정 변경</button>
         </div>
-        <textarea id="noteInput" class="note-textarea" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..."></textarea>
+        <textarea id="noteInput" class="note-textarea" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..." onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing){ event.preventDefault(); saveNote(); }"></textarea>
         <div class="note-editor-actions">
           <button class="btn-save-note" id="btnSaveNote" onclick="saveNote()">쪽지 남기기</button>
           <button class="btn-cancel-edit-note" id="btnCancelEditNote" onclick="cancelEditNote()" style="display:none;">취소</button>
@@ -1394,7 +1432,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       <div class="chat-input-area">
         <div class="chat-input-row">
           <textarea id="chatInput" class="note-textarea" rows="1" placeholder="메시지를 입력하세요..." onkeydown="if(event.key==='Enter' && !event.shiftKey && !event.isComposing && event.keyCode!==229){ event.preventDefault(); sendChatMessage(); }" oninput="autoGrowChatInput(this)"></textarea>
-          <button class="btn-save-note" onclick="sendChatMessage()">전송</button>
+          <button class="btn-save-note" onmousedown="event.preventDefault()" onclick="sendChatMessage()">전송</button>
         </div>
       </div>
     </div>
@@ -1845,6 +1883,27 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
              FCM_VAPID_KEY && FCM_VAPID_KEY.indexOf('여기에') !== 0;
     }
 
+    // ⚡ Firebase SDK 지연 로드: 푸시를 켠 기기에서만, 화면이 다 그려진 뒤에 받는다.
+    const FIREBASE_SDK_URLS = [
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js'
+    ];
+    let __firebaseSdkPromise = null;
+    function loadFirebaseSdk() {
+      if (typeof firebase !== 'undefined' && firebase.messaging) return Promise.resolve();
+      if (__firebaseSdkPromise) return __firebaseSdkPromise;
+      const load = (src) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = false;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('알림 모듈을 불러오지 못했어요 (네트워크 확인)'));
+        document.head.appendChild(s);
+      });
+      __firebaseSdkPromise = load(FIREBASE_SDK_URLS[0]).then(() => load(FIREBASE_SDK_URLS[1]))
+        .catch((e) => { __firebaseSdkPromise = null; throw e; });
+      return __firebaseSdkPromise;
+    }
+
     // ------------------------------------------------------------------
     // 알림 내역 저장소 (IndexedDB)
     // 사이트가 닫혀 있을 때(백그라운드) 온 알림은 firebase-messaging-sw.js가 여기에 똑같이 기록한다.
@@ -2057,8 +2116,14 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         alert('아직 알림 기능 설정이 끝나지 않았어요. (Firebase 연동이 필요합니다)');
         return;
       }
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') {
-        alert('이 브라우저(또는 이 화면)에서는 웹 푸시 알림을 사용할 수 없어요.\n구글 사이트에 끼워 넣은 화면이 아니라, 실제 사이트 주소로 직접 열어서 시도해 주세요.');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+        if (isIOS && !standalone) {
+          alert('아이폰은 사파리에서 [공유 → 홈 화면에 추가]를 한 뒤,\n홈 화면의 앱 아이콘으로 열어야 알림을 켤 수 있어요.');
+        } else {
+          alert('이 브라우저(또는 이 화면)에서는 웹 푸시 알림을 사용할 수 없어요.\n실제 사이트 주소로 직접 열어서 시도해 주세요.');
+        }
         return;
       }
 
@@ -2088,6 +2153,9 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
           showToast('알림 권한이 허용되지 않았어요.', '🔕');
           return;
         }
+        // 권한 요청(사용자 터치 직후여야 함)이 끝난 뒤에 SDK를 받는다
+        showToast('알림을 연결하는 중...', '🔔', 2500);
+        await loadFirebaseSdk();
         // 상대 경로로 등록해야 Netlify(루트)든 GitHub Pages(하위 폴더)든 상관없이 항상 올바른 위치를 찾는다
         const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -2141,13 +2209,16 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 
     // 1. 실시간 토스트 알림
     let toastTimeout = null;
-    function showToast(message, icon = "🔔", durationMs = 3500) {
+    let __toastAction = null; // 토스트를 누르면 실행할 동작 (예: 새 메시지 → 채팅 탭 열기)
+    function showToast(message, icon = "🔔", durationMs = 3500, action = null) {
       const toast = document.getElementById("appleToast");
       const iconEl = document.getElementById("toastIcon");
       const msgEl = document.getElementById("toastMessage");
 
       iconEl.innerText = icon;
       msgEl.innerText = message;
+      __toastAction = typeof action === 'function' ? action : null;
+      toast.classList.toggle('clickable', !!__toastAction);
       toast.classList.add("show");
 
       clearTimeout(toastTimeout);
@@ -2170,6 +2241,18 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         .replace(/'/g, '&#39;');
     }
 
+    function onToastClick() {
+      const act = __toastAction;
+      __toastAction = null;
+      document.getElementById('appleToast').classList.remove('show');
+      if (act) { try { act(); } catch (e) {} }
+    }
+
+    // 날짜 입력칸용 "오늘" (toISOString()은 UTC 기준이라 한국에서는 오전 9시 전에 어제 날짜가 나왔다)
+    function localDateInputValue(d = new Date()) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function describeError(err) {
       const raw = (err && err.message) ? err.message : String(err || '알 수 없는 오류');
       if (/Failed to fetch|NetworkError|network/i.test(raw)) return '네트워크 연결을 확인해주세요';
@@ -2184,8 +2267,15 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       if (__manualRefreshing) return;
       __manualRefreshing = true;
       lastLocalActionTime = 0; // "방금 저장함" 보호 시간을 무시하고 강제로 받아온다
-      showToast('최신 정보를 불러오는 중...', '🔄', 1500);
-      try { await loadFromCloudSilently(); } catch (e) {}
+      // 저장에 실패해서 남아 있는 내용이 있으면 그것부터 다시 보낸다
+      if (__syncQueue.length > 0) {
+        showToast('저장 못 한 내용을 다시 보내는 중...', '🔄', 1800);
+        __syncRetryCount = 0;
+        try { await drainSyncQueue(); } catch (e) {}
+      } else {
+        showToast('최신 정보를 불러오는 중...', '🔄', 1500);
+      }
+      try { await loadFromCloudSilently(true); } catch (e) {}
       __manualRefreshing = false;
     }
 
@@ -2228,16 +2318,18 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     }
 
     // 4. 테마 시스템
+    // 테마는 기기별 설정이라 클라우드에 저장할 필요가 없다 (예전엔 바꿀 때마다 전체 데이터를 저장하고,
+    // 그 때문에 25초 동안 상대방 소식 알림까지 숨겨졌다)
     function setTheme(themeName) {
-      registerLocalAction();
       document.documentElement.setAttribute("data-theme", themeName);
       localStorage.setItem("couple_theme", themeName);
 
       document.querySelectorAll(".theme-card").forEach(c => c.classList.remove("active"));
       const activeCard = document.getElementById(`theme-${themeName}`);
       if (activeCard) activeCard.classList.add("active");
+      const tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', themeName === 'light' ? '#f5f5f7' : '#000000');
 
-      syncToCloud();
       showToast(`테마가 변경되었습니다!`, "🎨");
     }
 
@@ -2278,47 +2370,117 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 
     function getAllQnAAnswers() {
       const obj = {};
-      for (let i = 0; i < 10; i++) {
+      // 예전엔 0~9번까지만 저장했다 → 질문 수만큼 전부 저장
+      const n = Math.max(10, (typeof QUESTIONS !== 'undefined' ? QUESTIONS.length : 10));
+      for (let i = 0; i < n; i++) {
         const val = localStorage.getItem(`qna_answers_${i}`);
-        if (val) obj[i] = JSON.parse(val);
+        if (val) { try { obj[i] = JSON.parse(val); } catch (e) {} }
       }
       return obj;
     }
 
-    let syncTimeout = null;
-    // notifyType: 텔레그램 알림을 보낼 만큼 "의미 있는 새 콘텐츠"일 때만 지정해서 넘긴다
-    // (예: 'note_added', 'bucket_added'). 테마/무드처럼 사소한 자동저장은 생략해서 알림이 시끄럽지 않게 한다.
-    function syncToCloud(immediatePayload = null, notifyType = null, extraFields = null) {
-      setSyncStatus("syncing", "저장 중...");
-      clearTimeout(syncTimeout);
+    // ------------------------------------------------------------------
+    // 저장 큐 (예전 syncToCloud를 대체)
+    // 예전 문제:
+    //  1) 저장 요청이 동시에 여러 개 날아가서, 늦게 출발한 "최신" 상태보다 먼저 출발한 "옛날" 상태가
+    //     서버에 나중에 도착하면 방금 쓴 채팅/쪽지가 사라질 수 있었다.
+    //  2) 0.3초 안에 저장이 두 번 일어나면 앞의 알림 종류(예: 쪽지 알림)가 지워졌다.
+    //  3) 실패하면 그냥 "저장 실패"만 뜨고 다시 보내지 않았다 (지하철·엘리베이터에서 쓴 글이 그대로 증발).
+    // 지금은 한 번에 하나씩만 순서대로 보내고, 실패하면 자동으로 다시 보내며, 앱을 닫는 순간에도 마저 보낸다.
+    // ------------------------------------------------------------------
+    const __syncQueue = [];            // [{ immediatePayload, notifyType, extraFields, sending }]
+    let __syncDebounce = null;
+    let __syncInflight = null;
+    let __syncRetryTimer = null;
+    let __syncRetryCount = 0;
+    let __localVersion = 0;            // 이 기기에서 데이터를 바꿀 때마다 +1 (낡은 서버 응답을 걸러내는 데 사용)
+    const SYNC_MAX_RETRIES = 5;
+    const __pendingChatIds = new Set(); // 아직 서버 저장이 확인되지 않은 내 채팅
+    const __failedChatIds = new Set();  // 여러 번 실패한 내 채팅 (말풍선 아래 "다시 보내기")
 
-      syncTimeout = setTimeout(async () => {
-        if (!GAS_WEB_APP_URL) return;
-        try {
-          const payload = immediatePayload || { appState: getFullAppState() };
+    function hasPendingSync() {
+      return __syncQueue.length > 0 || !!__syncInflight || !!__syncDebounce;
+    }
+
+    // notifyType: 상대에게 푸시 알림을 보낼 만큼 "의미 있는 새 콘텐츠"일 때만 지정해서 넘긴다
+    // (예: 'note_added', 'bucket_added'). 무드/읽음 표시처럼 사소한 저장은 생략해서 알림이 시끄럽지 않게 한다.
+    function syncToCloud(immediatePayload = null, notifyType = null, extraFields = null) {
+      __localVersion++;
+      setSyncStatus("syncing", "저장 중...");
+      const last = __syncQueue[__syncQueue.length - 1];
+      // 아직 출발하지 않은 마지막 요청과 합칠 수 있으면 합친다.
+      // (상태는 "보내는 순간" 최신값으로 다시 읽기 때문에 합쳐도 데이터는 항상 최신이다)
+      if (last && !last.sending && !last.immediatePayload && !immediatePayload &&
+          (!notifyType || !last.notifyType || last.notifyType === notifyType)) {
+        if (notifyType) { last.notifyType = notifyType; last.extraFields = extraFields; }
+        else if (extraFields && !last.notifyType) last.extraFields = extraFields;
+      } else {
+        __syncQueue.push({ immediatePayload, notifyType, extraFields, sending: false });
+      }
+      clearTimeout(__syncDebounce);
+      __syncDebounce = setTimeout(() => { __syncDebounce = null; drainSyncQueue(); }, 300);
+    }
+
+    async function drainSyncQueue(useKeepalive = false) {
+      if (!GAS_WEB_APP_URL) return;
+      if (__syncInflight) return __syncInflight;
+      clearTimeout(__syncRetryTimer); __syncRetryTimer = null;
+      __syncInflight = (async () => {
+        while (__syncQueue.length > 0) {
+          const req = __syncQueue[0];
+          req.sending = true;
+          const payload = req.immediatePayload ? Object.assign({}, req.immediatePayload) : {};
           if (!payload.appState) payload.appState = getFullAppState();
           payload.secret = APP_SECRET;
           payload.actor = currentSender; // 이 행동을 한 사람 — 백엔드가 "본인 기기엔 알림 안 보내기"에 사용
-          if (notifyType) payload.notifyType = notifyType;
-          if (extraFields) Object.assign(payload, extraFields);
-
-          const res = await fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-          });
-          const json = await res.json();
-          if (json && json.status === 'success') {
-            setSyncStatus("synced", "동기화됨");
-          } else {
-            console.error('[syncToCloud] 서버 오류:', json && json.message);
-            setSyncStatus("error", "저장 실패");
+          if (req.notifyType) payload.notifyType = req.notifyType;
+          if (req.extraFields) Object.assign(payload, req.extraFields);
+          const sentChatIds = ((payload.appState && payload.appState.chatMessages) || []).map(m => m.id);
+          const body = JSON.stringify(payload);
+          try {
+            const res = await fetch(GAS_WEB_APP_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body,
+              // 앱을 닫거나 다른 앱으로 넘어가는 순간에도 요청이 끝까지 가도록 (64KB 제한)
+              keepalive: !!useKeepalive && body.length < 60000
+            });
+            const json = await res.json();
+            if (!json || json.status !== 'success') throw new Error((json && json.message) || '서버 오류');
+            __syncQueue.shift();
+            __syncRetryCount = 0;
+            sentChatIds.forEach(id => { __pendingChatIds.delete(id); __failedChatIds.delete(id); });
+          } catch (e) {
+            req.sending = false;
+            console.error('[syncToCloud] 저장 실패:', e);
+            __syncRetryCount++;
+            const offline = navigator.onLine === false;
+            if (!offline && __syncRetryCount <= SYNC_MAX_RETRIES) {
+              const delay = Math.min(30000, 1500 * Math.pow(2, __syncRetryCount - 1));
+              setSyncStatus('error', `저장 재시도 중 (${__syncRetryCount})`);
+              __syncRetryTimer = setTimeout(() => { __syncRetryTimer = null; drainSyncQueue(); }, delay);
+            } else {
+              setSyncStatus('error', offline ? '오프라인 · 연결되면 저장' : '저장 실패 · 눌러서 재시도');
+              __pendingChatIds.forEach(id => __failedChatIds.add(id));
+            }
+            return false;
           }
-        } catch(e) {
-          console.error('[syncToCloud] 저장 실패:', e);
-          setSyncStatus("error", "저장 실패");
         }
-      }, 300);
+        setSyncStatus('synced', '동기화됨');
+        return true;
+      })();
+      try { return await __syncInflight; }
+      finally { __syncInflight = null; renderChatMessages(); }
+    }
+
+    // 실패한 채팅 말풍선의 "다시 보내기"
+    function retryFailedSync() {
+      __syncRetryCount = 0;
+      __failedChatIds.forEach(id => __pendingChatIds.add(id));
+      __failedChatIds.clear();
+      if (__syncQueue.length === 0) syncToCloud(null);
+      else drainSyncQueue();
+      renderChatMessages();
     }
 
     // 파트너가 사진을 올리거나 데이터를 바꾸면 알려주는 변경 감지 (내 기기의 최근 조작 직후는 알림 억제)
@@ -2349,32 +2511,94 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       }
     }
 
+    // 누가 무엇을 새로 남겼는지 구체적으로 알려준다 (채팅·쪽지는 보낸 사람이 기록돼 있어서 정확히 구분 가능)
+    function announcePartnerActivity(newChats, newNotes) {
+      const partnerName = SENDER_NAMES[partnerOf(currentSender)] || '상대';
+      const cut = (t) => { t = String(t || '').replace(/\s+/g, ' '); return t.length > 40 ? t.slice(0, 40) + '…' : t; };
+      const viewingChat = isChatViewActive() && document.visibilityState === 'visible';
+      if (newChats.length && !viewingChat) {
+        const lastMsg = newChats[newChats.length - 1];
+        const more = newChats.length > 1 ? ` (+${newChats.length - 1})` : '';
+        showToast(`${partnerName}: ${cut(lastMsg.text)}${more}`, '💬', 5000, () => switchPage('chat'));
+        playNotificationSound();
+      } else if (newNotes.length) {
+        showToast(`${partnerName}의 새 쪽지 · ${cut(newNotes[0].text)}`, '💌', 5000, () => scrollToSection('notes'));
+        playNotificationSound();
+      }
+    }
+
+    // 채팅 합치기: 서버 목록을 기본으로 하되, 서버에 아직 없는 "내가 최근에 보낸" 메시지는 버리지 않는다.
+    // (두 사람이 거의 동시에 저장하면 한쪽 저장이 다른 쪽 메시지를 덮어쓸 수 있는데, 그때 사라진 내 메시지를 되살려 다시 저장)
+    const __chatResyncTries = {};
+    function mergeCloudChat(cloudList) {
+      if (!Array.isArray(cloudList) || cloudList.length === 0) return { merged: cloudList || [], extras: [] };
+      const cloudIds = new Set(cloudList.map(m => m && m.id));
+      const cutoff = Date.now() - 3 * 86400000;
+      let oldestCloud = Infinity;
+      cloudList.forEach(m => { if (m && (m.time || 0) < oldestCloud) oldestCloud = m.time || 0; });
+      const extras = chatMessages.filter(m => m && m.id && !cloudIds.has(m.id) && m.sender === currentSender &&
+        (m.time || 0) > cutoff && (m.time || 0) >= oldestCloud && (__chatResyncTries[m.id] || 0) < 3);
+      if (extras.length === 0) return { merged: cloudList, extras };
+      extras.forEach(m => { __chatResyncTries[m.id] = (__chatResyncTries[m.id] || 0) + 1; });
+      const merged = cloudList.concat(extras).sort((a, b) => (a.time || 0) - (b.time || 0));
+      return { merged, extras };
+    }
+
     // 백그라운드 데이터 갱신
     let isInitialLoad = true;
-    async function loadFromCloudSilently() {
+    let __loadInflight = null;
+    async function loadFromCloudSilently(force = false) {
       if (!GAS_WEB_APP_URL) return;
+      if (__loadInflight) return __loadInflight; // 이미 받아오는 중이면 같은 요청을 기다린다 (중복 요청 방지)
 
-      if (Date.now() - lastLocalActionTime < 7000 && !isInitialLoad) {
-        return;
+      if (!force && !isInitialLoad) {
+        if (Date.now() - lastLocalActionTime < 7000) return;
+        // 저장 못 한 내용이 남아 있으면 먼저 보내 본다
+        if (__syncQueue.length > 0 && !__syncInflight && !__syncDebounce) { try { await drainSyncQueue(); } catch (e) {} }
+        // 아직 저장 중인 내 변경이 있으면, 지금 받는 서버 데이터는 그보다 낡았으므로 이번엔 건너뛴다
+        if (hasPendingSync()) return;
       }
 
-      setSyncStatus("syncing", isInitialLoad ? "불러오는 중..." : "확인 중...");
+      __loadInflight = (async () => {
+        const startVersion = __localVersion;
+        if (isInitialLoad || force) setSyncStatus("syncing", isInitialLoad ? "불러오는 중..." : "확인 중...");
+        try {
+          // ⚠️ 캐시 버스팅 필수: Apps Script의 exec 주소는 매번 새로운 임시 주소(user_content_key)로
+          // 리다이렉트되는데, 같은 주소만 반복하면 브라우저가 리다이렉트를 캐시해서 만료된 주소로 가는 경우가 있다.
+          const res = await fetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
+          const json = await res.json();
+          if (!(json && json.status === "success" && json.data)) {
+            console.warn('[loadFromCloudSilently] 서버 응답 이상:', json);
+            setSyncStatus("error", "응답 오류");
+            return;
+          }
+          // 응답을 기다리는 동안 이 기기에서 뭔가 바꿨다면 이 응답은 이미 낡은 데이터 → 버리고 다음에 다시 받는다.
+          // (예전엔 이 응답이 방금 쓴 쪽지/버킷을 덮어써서 지워버릴 수 있었다)
+          if (__localVersion !== startVersion || (!force && hasPendingSync())) return;
 
-      try {
-        // ⚠️ 캐시 버스팅 필수: Apps Script의 exec 주소는 매번 새로운 임시 주소(user_content_key)로
-        // 리다이렉트되는데, 그냥 fetch(GAS_WEB_APP_URL)만 반복하면 브라우저가 이 리다이렉트 자체를
-        // 캐시해버려서 예전의 만료된 임시 주소로 계속 보내는 경우가 있다 → "404 / <!DOCTYPE" 오류로
-        // 동기화가 실패하는 원인. 매 요청마다 URL을 다르게 만들어서 항상 새로 리다이렉트를 받도록 한다.
-        const res = await fetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
-        const json = await res.json();
-        if (json && json.status === "success" && json.data) {
           const cloud = json.data;
-          detectAndNotifyChange(cloud);
+
+          // 누가 새로 남긴 채팅/쪽지인지 먼저 계산 (덮어쓰기 전의 로컬 목록과 비교)
+          const partner = partnerOf(currentSender);
+          let newPartnerChats = [], newPartnerNotes = [];
+          if (!isInitialLoad) {
+            const localChatIds = new Set(chatMessages.map(m => m.id));
+            newPartnerChats = (cloud.chatMessages || []).filter(m => m && m.sender === partner && !localChatIds.has(m.id));
+            let localNotes = [];
+            try { localNotes = JSON.parse(localStorage.getItem('couple_notes') || '[]'); } catch (e) {}
+            const localNoteIds = new Set(localNotes.map(n => n.id));
+            newPartnerNotes = (cloud.notes || []).filter(n => n && n.id && n.sender === partner && !localNoteIds.has(n.id));
+          }
+          if (newPartnerChats.length || newPartnerNotes.length) {
+            lastCloudSignature = buildCloudSignature(cloud); // 아래 일반 알림과 중복되지 않게
+            announcePartnerActivity(newPartnerChats, newPartnerNotes);
+          } else {
+            detectAndNotifyChange(cloud);
+          }
 
           // 컬러 테마는 기기마다 따로 쓴다 (서로 다른 테마 가능) — 클라우드 값으로 덮어쓰지 않음
 
-          // ⚡ 성능: 15초(채팅 중 5초)마다 받아오는 데이터 중 "실제로 바뀐 부분만" 다시 그린다.
-          //    예전엔 매번 사진첩·채팅·쪽지·버킷을 전부 다시 그려서 폰에서 주기적으로 버벅였다.
+          // ⚡ 성능: 주기적으로 받아오는 데이터 중 "실제로 바뀐 부분만" 다시 그린다.
           const changed = (key, value) => {
             const next = typeof value === 'string' ? value : JSON.stringify(value);
             if (localStorage.getItem(key) === next) return false;
@@ -2382,7 +2606,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
             return true;
           };
 
-          if (cloud.mainPhoto && changed("couple_main_photo", cloud.mainPhoto)) loadPhoto();
+          if (cloud.mainPhoto && changed("couple_main_photo", cloud.mainPhoto)) { loadPhoto(); if (typeof syncSettingsPhoto === 'function') syncSettingsPhoto(); }
 
           if (cloud.memories && Array.isArray(cloud.memories)) {
             cloud.memories.forEach(item => { item.category = normalizeCategory(item.category); });
@@ -2397,24 +2621,27 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
           if (cloud.notes && changed("couple_notes", cloud.notes)) loadNotes();
 
           let chatChanged = false;
-          if (cloud.chatMessages && changed("couple_chat", cloud.chatMessages)) { loadChatMessages(); chatChanged = true; }
+          let chatExtras = [];
+          if (cloud.chatMessages) {
+            const m = mergeCloudChat(cloud.chatMessages);
+            chatExtras = m.extras;
+            if (changed("couple_chat", m.merged)) { loadChatMessages(); chatChanged = true; }
+          }
           if (cloud.chatReadReceipts && changed("couple_chat_read", cloud.chatReadReceipts)) {
             // 백엔드가 이미 기존 값과 병합(더 늦은 시각으로만 갱신)해서 보내주므로 그대로 덮어써도 안전하다
             loadChatReadReceipts(); chatChanged = true;
           }
           if (chatChanged) {
             renderChatMessages();
-            // 채팅 탭을 보고 있는 중에 새 메시지가 도착했다면 그 즉시 "읽음"으로 갱신해서 상대방의 "1"을 지워준다
-            const chatViewEl = document.getElementById('view-chat');
-            if (chatViewEl && chatViewEl.classList.contains('active')) {
-              markChatAsReadIfNeeded();
-            }
+            // 채팅 탭을 "실제로 보고 있는" 중에 새 메시지가 도착했다면 바로 읽음 처리해서 상대방의 "1"을 지워준다
+            if (isChatViewActive()) markChatAsReadIfNeeded();
           }
+          if (chatExtras.length) syncToCloud(null); // 서버에서 사라졌던 내 메시지를 다시 저장
 
           let qnaNeedsRerender = false;
           if (cloud.qnaIndex !== undefined && cloud.qnaIndex !== null && cloud.qnaIndex !== '') {
             const cloudQIndex = parseInt(cloud.qnaIndex, 10);
-            if (!isNaN(cloudQIndex) && cloudQIndex !== currentQIndex) {
+            if (!isNaN(cloudQIndex) && cloudQIndex !== currentQIndex && cloudQIndex >= 0 && cloudQIndex < QUESTIONS.length) {
               currentQIndex = cloudQIndex;
               localStorage.setItem('qna_index', String(currentQIndex));
               qnaNeedsRerender = true;
@@ -2429,20 +2656,60 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 
           if (cloud.mood && changed("couple_mood", cloud.mood)) loadMood();
           if (cloud.buckets && changed("couple_buckets", cloud.buckets)) renderBuckets();
-          if (cloud.photoSettings && changed("couple_photo_settings", cloud.photoSettings)) loadPhoto();
-          if (cloud.anniversary && changed("couple_anniversary_date", cloud.anniversary)) { updateTimer(); renderAnniversaries(); }
+          if (cloud.photoSettings && changed("couple_photo_settings", cloud.photoSettings)) { loadPhoto(); if (typeof syncSettingsPhoto === 'function') syncSettingsPhoto(); }
+          if (cloud.anniversary && changed("couple_anniversary_date", cloud.anniversary)) { updateTimer(); renderAnniversaries(); if (typeof updateHeroMeta === 'function') updateHeroMeta(); }
 
           isInitialLoad = false;
-          setSyncStatus("synced", "동기화됨");
-        } else {
-          console.warn('[loadFromCloudSilently] 서버 응답 이상:', json);
-          setSyncStatus("error", "응답 오류");
+          if (!hasPendingSync()) setSyncStatus("synced", "동기화됨");
+        } catch(e) {
+          console.error('[loadFromCloudSilently] 동기화 실패:', e);
+          setSyncStatus("error", navigator.onLine === false ? "오프라인" : "연결 실패");
         }
-      } catch(e) {
-        console.error('[loadFromCloudSilently] 동기화 실패:', e);
-        setSyncStatus("error", "연결 실패");
-      }
+      })();
+      try { return await __loadInflight; } finally { __loadInflight = null; }
     }
+
+    // ⚡ 새로고침 주기 관리 (예전: 15초 타이머 + 채팅 5초 타이머가 동시에 돌고, 화면이 꺼져 있어도 계속 요청)
+    // 지금: 타이머 하나만 쓰고, 채팅 탭이면 5초 / 그 외 15초, 앱이 백그라운드면 완전히 멈췄다가
+    //       다시 화면에 돌아오는 순간 바로 최신 정보를 받아온다.
+    let __pollTimer = null;
+    function isChatViewActive() {
+      const v = document.getElementById('view-chat');
+      return !!(v && v.classList.contains('active'));
+    }
+    function schedulePoll(delayMs) {
+      clearTimeout(__pollTimer); __pollTimer = null;
+      if (document.visibilityState === 'hidden') return;
+      const d = (typeof delayMs === 'number') ? delayMs : (isChatViewActive() ? 5000 : 15000);
+      __pollTimer = setTimeout(async () => {
+        __pollTimer = null;
+        try { await loadFromCloudSilently(); } catch (e) {}
+        schedulePoll();
+      }, d);
+    }
+
+    function flushSyncNow() {
+      if (__syncDebounce) { clearTimeout(__syncDebounce); __syncDebounce = null; }
+      if (__syncQueue.length > 0) drainSyncQueue(true);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(__pollTimer); __pollTimer = null;
+        flushSyncNow(); // 쓰자마자 앱을 내려도 저장이 끝까지 가도록
+      } else {
+        updateTimer();
+        if (isChatViewActive()) markChatAsReadIfNeeded();
+        schedulePoll(0);
+      }
+    });
+    window.addEventListener('pagehide', flushSyncNow);
+    window.addEventListener('online', () => {
+      __syncRetryCount = 0;
+      if (__syncQueue.length > 0) drainSyncQueue();
+      schedulePoll(0);
+    });
+    window.addEventListener('offline', () => setSyncStatus('error', '오프라인'));
 
     // 6. 프로필 사진 조절 엔진
     function getPhotoSettings() {
@@ -2587,7 +2854,17 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       return localStorage.getItem("couple_anniversary_date") || DEFAULT_START_DATE;
     }
 
+    let __timerDayKey = '';
     function updateTimer() {
+      if (document.visibilityState === 'hidden') return; // 안 보이는 동안은 1초마다 화면을 고칠 필요가 없다
+      const today = new Date();
+      const dayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+      if (__timerDayKey && __timerDayKey !== dayKey) {
+        // 앱을 켜둔 채로 자정이 지나면 기념일 D-day도 새 날짜 기준으로 다시 계산
+        renderAnniversaries();
+        if (typeof updateHeroMeta === 'function') updateHeroMeta();
+      }
+      __timerDayKey = dayKey;
       const startDateStr = getStoredDate();
       const anniversary = new Date(startDateStr + "T00:00:00");
       const now = new Date();
@@ -2664,6 +2941,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       closeDateModal();
       updateTimer();
       renderAnniversaries();
+      if (typeof updateHeroMeta === 'function') updateHeroMeta();
       syncToCloud();
       showToast('기념일 설정이 저장되었습니다!', '🎂');
     }
@@ -2818,7 +3096,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
           <div class="memory-card" onclick="openLightbox('${item.id}')">
             <div class="memory-img-wrapper">
               ${coverImg
-                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" loading="lazy" />`
+                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async" />`
                 : `<div class="memory-img memory-img-placeholder">🖼<span>사진 준비 중</span></div>`}
               ${cover && cover.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
               <span class="memory-tag-badge">${getCategoryName(item.category)}</span>
@@ -2888,13 +3166,55 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     });
 
     function openAddMemoryModal() {
-      document.getElementById('memoryDateInput').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('memoryDateInput').value = localDateInputValue();
       resetFilePicker('memoryFileInput', 'memoryFilePreview', 'memoryFileCount');
       document.getElementById('addMemoryModal').classList.add('active');
     }
     function closeAddMemoryModal() {
       document.getElementById('addMemoryModal').classList.remove('active');
     }
+
+    // ⚡ 여러 장 업로드를 3개씩 동시에 보낸다 (예전엔 한 장씩 차례로라 10장이면 10배 걸렸다).
+    //    서버가 "마지막 파일" 도착을 기준으로 마무리/알림을 처리할 수 있으므로, 맨 마지막 파일은 나머지가 다 끝난 뒤에 보낸다.
+    const UPLOAD_CONCURRENCY = 3;
+    let __uploadsInProgress = 0;
+    async function uploadMediaBatch(prepared, opts) {
+      const { folderId, title, date, indexOffset = 0, total, onEach } = opts;
+      const results = new Array(prepared.length).fill(null);
+      let done = 0;
+      const postOnce = (i) => fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: "upload_single_media", folderId, title, date,
+          base64: prepared[i].base64, index: indexOffset + i, total, secret: APP_SECRET
+        })
+      }).then(r => r.json());
+      const uploadOne = async (i) => {
+        registerLocalAction();
+        let upJson;
+        try { upJson = await postOnce(i); }
+        catch (e) { await new Promise(r => setTimeout(r, 1500)); upJson = await postOnce(i); } // 네트워크가 잠깐 끊긴 경우 한 번 더
+        if (upJson && upJson.status === 'success' && upJson.url) {
+          results[i] = { type: upJson.type || prepared[i].type, url: upJson.url, thumbUrl: upJson.thumbUrl || upJson.url, fileId: upJson.fileId };
+        }
+        done++;
+        if (onEach) onEach(done, i, results[i]);
+      };
+      const head = prepared.map((_, i) => i).slice(0, -1);
+      let cursor = 0;
+      const worker = async () => { while (cursor < head.length) { const i = head[cursor++]; await uploadOne(i); } };
+      __uploadsInProgress++;
+      try {
+        await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, head.length) }, worker));
+        if (prepared.length > 0) await uploadOne(prepared.length - 1);
+      } finally { __uploadsInProgress--; }
+      return results;
+    }
+    // 업로드 중에 창을 닫으려고 하면 한 번 묻는다 (닫으면 업로드가 중간에 끊김)
+    window.addEventListener('beforeunload', (e) => {
+      if (__uploadsInProgress > 0) { e.preventDefault(); e.returnValue = ''; }
+    });
 
     // 새 추억 등록 (사진 + 동영상)
     async function saveNewMemory() {
@@ -2976,30 +3296,15 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
           newItem.folderUrl = prepJson.folderUrl || MAIN_DRIVE_URL;
           newItem.id = "drive-" + targetFolderId;
 
-          for (let i = 0; i < totalFiles; i++) {
-            registerLocalAction();
-            const currentPct = 20 + Math.round(((i + 1) / totalFiles) * 80);
-            updateUploadProgress(currentPct, `드라이브 저장 중 ${currentPct}% (${i + 1}/${totalFiles})`);
-
-            const upRes = await fetch(GAS_WEB_APP_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-              body: JSON.stringify({
-                action: "upload_single_media",
-                folderId: targetFolderId,
-                title: title,
-                date: formattedDate,
-                base64: prepared[i].base64,
-                index: i,
-                total: totalFiles,
-                secret: APP_SECRET
-              })
-            });
-            const upJson = await upRes.json();
-            if (upJson.status === 'success' && upJson.url) {
-              newItem.media[i] = { type: upJson.type || prepared[i].type, url: upJson.url, thumbUrl: upJson.thumbUrl || upJson.url, fileId: upJson.fileId };
+          updateUploadProgress(20, `드라이브 저장 중 20% (0/${totalFiles})`);
+          await uploadMediaBatch(prepared, {
+            folderId: targetFolderId, title, date: formattedDate, indexOffset: 0, total: totalFiles,
+            onEach: (done, i, media) => {
+              if (media) newItem.media[i] = media;
+              const currentPct = 20 + Math.round((done / totalFiles) * 80);
+              updateUploadProgress(currentPct, `드라이브 저장 중 ${currentPct}% (${done}/${totalFiles})`);
             }
-          }
+          });
 
           renderMemories();
           syncToCloud();
@@ -3035,7 +3340,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       document.getElementById('editMemoryCategory').value = item.category;
 
       const dateParts = item.date.replace(/\./g, '-');
-      document.getElementById('editMemoryDate').value = dateParts.length === 10 ? dateParts : new Date().toISOString().slice(0, 10);
+      document.getElementById('editMemoryDate').value = dateParts.length === 10 ? dateParts : localDateInputValue();
       document.getElementById('editMemoryDesc').value = item.desc;
       resetFilePicker('editMemoryFileInput', 'editMemoryFilePreview', 'editMemoryFileCount');
 
@@ -3170,31 +3475,14 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 
           // 5. 새로 추가된 파일만 순차 업로드 (남긴 파일은 재업로드하지 않음)
           const totalNew = prepared.length;
-          const uploadedMedia = [];
-          for (let i = 0; i < totalNew; i++) {
-            registerLocalAction();
-            const currentPct = 40 + Math.round(((i + 1) / totalNew) * 60);
-            updateUploadProgress(currentPct, `새 파일 저장 중 ${currentPct}% (${i + 1}/${totalNew})`);
-
-            const upRes = await fetch(GAS_WEB_APP_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-              body: JSON.stringify({
-                action: "upload_single_media",
-                folderId: targetFolderId,
-                title: title,
-                date: formattedDate,
-                base64: prepared[i].base64,
-                index: keptMedia.length + i,
-                total: keptMedia.length + totalNew,
-                secret: APP_SECRET
-              })
-            });
-            const upJson = await upRes.json();
-            if (upJson.status === 'success' && upJson.url) {
-              uploadedMedia.push({ type: upJson.type || prepared[i].type, url: upJson.url, thumbUrl: upJson.thumbUrl || upJson.url, fileId: upJson.fileId });
+          const uploadedResults = await uploadMediaBatch(prepared, {
+            folderId: targetFolderId, title, date: formattedDate, indexOffset: keptMedia.length, total: keptMedia.length + totalNew,
+            onEach: (done) => {
+              const currentPct = 40 + Math.round((done / totalNew) * 60);
+              updateUploadProgress(currentPct, `새 파일 저장 중 ${currentPct}% (${done}/${totalNew})`);
             }
-          }
+          });
+          const uploadedMedia = uploadedResults.filter(Boolean); // 선택한 순서 그대로
 
           const finalIdx = GLOBAL_MEMORIES.findIndex(m => m.id === finalId);
           if (finalIdx !== -1) {
@@ -3267,6 +3555,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     // 11. 라이트박스 멀티 사진/동영상 슬라이더
     let currentLightboxMedia = [];
     let currentLightboxIndex = 0;
+    const __loadedFullImages = new Set();
     let activeLightboxId = null;
 
     function openLightbox(id) {
@@ -3340,8 +3629,33 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         videoEl.style.display = 'none';
         videoEl.src = ''; // 페이지 이동 시 동영상 재생 중지
         imgEl.style.display = 'block';
-        imgEl.src = current.url;
+        // ⚡ 앨범에서 이미 받아둔 작은 사진을 먼저 보여주고, 선명한 원본은 다 받으면 조용히 바꾼다
+        //    (예전엔 큰 원본이 다 올 때까지 빈 화면/이전 사진이 보였다)
+        const full = current.url;
+        const thumb = current.thumbUrl;
+        if (thumb && thumb !== full && !__loadedFullImages.has(full)) {
+          imgEl.src = thumb;
+          const pre = new Image();
+          pre.onload = () => {
+            __loadedFullImages.add(full);
+            if (currentLightboxMedia[currentLightboxIndex] === current && imgEl.style.display !== 'none') imgEl.src = full;
+          };
+          pre.src = full;
+        } else {
+          imgEl.src = full;
+        }
       }
+      // ⚡ 옆 사진을 미리 받아두어 넘길 때 바로 뜨게 한다
+      [1, -1].forEach(step => {
+        const n = currentLightboxMedia.length;
+        if (n <= 1) return;
+        const m = currentLightboxMedia[(currentLightboxIndex + step + n) % n];
+        if (m && m.type !== 'video' && m.url && !__loadedFullImages.has(m.url) && /^https?:/.test(m.url)) {
+          const p = new Image();
+          p.onload = () => __loadedFullImages.add(m.url);
+          p.src = m.url;
+        }
+      });
 
       counterEl.innerText = `${currentLightboxIndex + 1} / ${currentLightboxMedia.length}`;
 
@@ -3515,14 +3829,45 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       "상대방의 가장 좋아하는 버릇이나 귀여운 포인트는?",
       "처음 만났을 때 상대방의 첫인상은 어땠나요?",
       "다음 여행으로 둘이서 꼭 가보고 싶은 나라는 어디인가요?",
-      "내가 생각하는 우리 둘만의 가장 소중한 순간은?"
+      "내가 생각하는 우리 둘만의 가장 소중한 순간은?",
+      // ↓ 질문이 6개뿐이라 금방 반복돼서 추가 (앞의 6개 순서는 기존 답변과 짝이 맞도록 그대로 둠)
+      "상대가 해준 말 중에 아직도 잊혀지지 않는 한마디는?",
+      "우리가 처음으로 손잡았던 날, 기억나는 것을 다 적어보자",
+      "요즘 상대에게 가장 고마웠던 순간은?",
+      "상대에게 꼭 해주고 싶은 요리나 먹이고 싶은 음식은?",
+      "서로에게 어울리는 노래 한 곡을 고른다면?",
+      "하루 동안 서로 바뀌어 산다면 제일 먼저 해보고 싶은 것은?",
+      "상대가 제일 사랑스러워 보이는 표정이나 행동은?",
+      "다투고 나서 화해할 때, 상대가 어떻게 해주면 제일 풀려?",
+      "내일 하루가 통째로 비어 있다면 같이 뭐 하고 싶어?",
+      "우리 커플만의 작은 전통을 하나 만든다면?",
+      "상대를 동물에 비유한다면? 이유는?",
+      "올해 안에 둘이 꼭 이루고 싶은 목표는?",
+      "상대를 처음 좋아한다고 느낀 순간은 언제였어?",
+      "기분이 안 좋을 때 상대가 해주면 제일 좋은 것은?",
+      "10년 뒤 우리는 어떤 모습일까?",
+      "상대에게 배우고 싶은 점이 있다면?",
+      "같이 본 것 중에 가장 좋았던 영화나 드라마는?",
+      "상대의 어린 시절에서 가장 궁금한 것은?",
+      "나만 알고 있는 상대의 매력 포인트는?",
+      "다음 데이트 코스를 직접 짠다면?",
+      "상대에게 지금 제일 하고 싶은 말 한마디"
     ];
     let currentQIndex = parseInt(localStorage.getItem('qna_index') || '0', 10);
+    if (isNaN(currentQIndex) || currentQIndex < 0 || currentQIndex >= QUESTIONS.length) currentQIndex = 0;
     function renderQnA() {
       document.getElementById("qnaTitle").innerText = `"${QUESTIONS[currentQIndex]}"`;
-      const answers = JSON.parse(localStorage.getItem(`qna_answers_${currentQIndex}`) || '{}');
+      let answers = {};
+      try { answers = JSON.parse(localStorage.getItem(`qna_answers_${currentQIndex}`) || '{}') || {}; } catch (e) {}
       document.getElementById("hisAnswerText").innerText = answers.his || "아직 답변을 남기지 않았어요.";
       document.getElementById("herAnswerText").innerText = answers.her || "아직 답변을 남기지 않았어요.";
+      // 내 답변이 이미 있으면 "수정"으로 안내
+      const hisIn = document.getElementById('hisInput');
+      const herIn = document.getElementById('herInput');
+      if (hisIn) hisIn.placeholder = answers.his ? '답변 고쳐 쓰기...' : '답변을 입력하세요...';
+      if (herIn) herIn.placeholder = answers.her ? '답변 고쳐 쓰기...' : '답변을 입력하세요...';
+      const counter = document.getElementById('qnaCounter');
+      if (counter) counter.innerText = `${currentQIndex + 1} / ${QUESTIONS.length}`;
     }
     function nextQuestion() {
       registerLocalAction();
@@ -3540,9 +3885,10 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       answers[type] = val;
       localStorage.setItem(`qna_answers_${currentQIndex}`, JSON.stringify(answers));
       input.value = '';
+      input.blur();
       renderQnA();
       syncToCloud();
-      showToast(`${type === 'his' ? '그의' : '그녀의'} 문답 답변이 저장되었습니다!`, '💬');
+      showToast(`${type === 'his' ? '정수' : '진하'}의 답변이 저장되었어요!`, '💬');
     }
 
     function getBuckets() {
@@ -3599,6 +3945,9 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       showToast('새로운 버킷리스트가 추가되었습니다!', '🎯');
     }
     function deleteBucket(index) {
+      const list0 = getBuckets();
+      if (!list0[index]) return;
+      if (!confirm(`"${list0[index].text}" 항목을 삭제할까요?`)) return; // 실수로 ✕를 눌러 지워지는 일 방지
       registerLocalAction();
       const list = getBuckets();
       list.splice(index, 1);
@@ -3626,6 +3975,8 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     function renderIdentityUI() {
       const name = SENDER_NAMES[currentSender] || currentSender;
       document.body.setAttribute('data-me', currentSender);
+      // 내 계정이 정해진 기기에서는 문답에서 내 칸만 입력할 수 있게 한다 (상대 칸에 잘못 적는 실수 방지)
+      document.body.setAttribute('data-identity', hasChosenIdentity() ? '1' : '0');
       document.querySelectorAll('.identity-chip-name').forEach(el => { el.innerText = name; });
       const st = document.getElementById('settingsIdentityState');
       if (st) st.innerText = hasChosenIdentity() ? name : '선택 안 됨';
@@ -3664,9 +4015,10 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     async function ensurePushRegistration(forceRegister) {
       if (localStorage.getItem('push_enabled') !== '1') return;
       if (!isPushConfigured() || !GAS_WEB_APP_URL) return;
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
       try {
+        await loadFirebaseSdk();
         const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (!fcmMessagingInstance) {
@@ -3825,9 +4177,13 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       const container = document.getElementById('chatMessagesList');
       if (!container) return;
       // ⚡ 같은 내용이면 다시 그리지 않는다 (탭 전환·주기 동기화 때 불필요한 재렌더 제거)
+      updateChatUnreadBadge();
       const last = chatMessages[chatMessages.length - 1];
-      const sig = currentSender + '|' + chatMessages.length + '|' + (last ? last.id + ':' + (last.text || '').length : '') + '|' + JSON.stringify(chatReadReceipts) + '|' + (document.documentElement.getAttribute('data-chat') || '');
-      if (!force && sig === __chatRenderSig && container.childElementCount > 0) { scrollChatToBottom(); return; }
+      const sig = currentSender + '|' + chatMessages.length + '|' + (last ? last.id + ':' + (last.text || '').length : '') + '|' + JSON.stringify(chatReadReceipts) + '|' + (document.documentElement.getAttribute('data-chat') || '') + '|' + __pendingChatIds.size + '/' + __failedChatIds.size;
+      if (!force && sig === __chatRenderSig && container.childElementCount > 0) { if (isChatViewActive()) scrollChatToBottom(); return; }
+      // 위로 올려서 예전 대화를 보고 있는 중이면 새 메시지가 와도 맨 아래로 끌어내리지 않는다
+      const wasNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 120;
+      const lastIsMine = last && last.sender === currentSender;
       __chatRenderSig = sig;
       if (chatMessages.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-state-glyph">💬</div><div class="empty-state-title">여기는 아직 조용해요</div><div class="empty-state-desc">오늘 하루 어땠는지 한 줄 남겨보세요.\n먼저 말 거는 쪽이 항상 이깁니다.</div></div>`;
@@ -3853,8 +4209,12 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         // 내가 보낸 메시지인데 상대가 아직 이 시각까지 안 읽았으면 "1" 표시
         const showUnread = isMe && (msg.time || 0) > partnerReadAt;
         const metaParts = [];
-        if (showUnread) metaParts.push('<span class="chat-unread-badge">1</span>');
-        if (!sameGroupAsNext) metaParts.push(formatChatTime(d));
+        const isFailed = isMe && __failedChatIds.has(msg.id);
+        const isSending = isMe && !isFailed && __pendingChatIds.has(msg.id);
+        if (isFailed) metaParts.push(`<button type="button" class="chat-fail-btn" onclick="retryFailedSync()">⚠ 전송 실패 · 다시 보내기</button>`);
+        else if (isSending) metaParts.push('<span class="chat-sending">전송 중</span>');
+        else if (showUnread) metaParts.push('<span class="chat-unread-badge">1</span>');
+        if (!sameGroupAsNext || isFailed) metaParts.push(formatChatTime(d));
         const isNew = i >= prevCount && prevCount > 0;
         html += `
           <div class="chat-bubble-row ${isMe ? 'me' : 'them'} ${sameGroupAsNext ? 'grouped' : ''} ${isNew ? 'pop-in' : ''}">
@@ -3866,7 +4226,28 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         `;
       });
       container.innerHTML = html;
-      scrollChatToBottom();
+      if (force || wasNearBottom || lastIsMine || prevCount === 0) scrollChatToBottom();
+    }
+
+    // 채팅 탭의 안 읽은 메시지 개수 배지 (다른 탭에 있어도 새 메시지가 온 걸 바로 알 수 있게)
+    function updateChatUnreadBadge() {
+      const myReadAt = chatReadReceipts[currentSender] || 0;
+      let count = 0;
+      if (!(isChatViewActive() && document.visibilityState === 'visible')) {
+        for (let i = chatMessages.length - 1; i >= 0; i--) {
+          const m = chatMessages[i];
+          if ((m.time || 0) <= myReadAt) break;
+          if (m.sender !== currentSender) count++;
+        }
+      }
+      const label = count > 99 ? '99+' : String(count);
+      ['navChatBadge', 'sidebarChatBadge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerText = label;
+        el.style.display = count > 0 ? 'flex' : 'none';
+      });
+      document.title = count > 0 ? `(${label}) 정수와진하` : '정수와진하';
     }
 
     function formatChatTime(d) {
@@ -3910,9 +4291,11 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       registerLocalAction();
       const msg = { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 7), sender: currentSender, text, time: Date.now() };
       chatMessages.push(msg);
+      __pendingChatIds.add(msg.id); // 서버 저장이 확인될 때까지 "전송 중" 표시
       localStorage.setItem('couple_chat', JSON.stringify(chatMessages));
       input.value = '';
       autoGrowChatInput(input);
+      input.focus(); // 전송 버튼을 눌러도 키보드가 내려가지 않고 바로 이어서 칠 수 있게
       renderChatMessages();
       markChatAsReadIfNeeded(); // 내가 방금 보냈으니 나 스스로는 당연히 여기까지 읽은 상태
       const preview = text.length > 60 ? text.slice(0, 60) + '...' : text;
@@ -3922,7 +4305,9 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     // 채팅 탭을 보고 있을 때 새 메시지를 확인하면 "여기까지 읽음" 시각을 갱신해서 상대 화면의 "1"을 지워준다.
     // 실제로 안 읽은 새 메시지가 있을 때만 동기화를 보내서 불필요한 저장 요청을 줄인다.
     function markChatAsReadIfNeeded() {
-      if (chatMessages.length === 0) return;
+      // 화면이 꺼져 있거나 다른 앱을 보고 있을 땐 "읽음" 처리하지 않는다 (안 읽었는데 1이 사라지던 문제)
+      if (document.visibilityState === 'hidden') return;
+      if (chatMessages.length === 0) { updateChatUnreadBadge(); return; }
       const latestTime = chatMessages[chatMessages.length - 1].time || 0;
       const mine = chatReadReceipts[currentSender] || 0;
       if (latestTime > mine) {
@@ -3930,17 +4315,14 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
         localStorage.setItem('couple_chat_read', JSON.stringify(chatReadReceipts));
         syncToCloud(null);
       }
+      updateChatUnreadBadge();
     }
 
     // 채팅 탭을 보고 있는 동안에는 좀 더 자주 새로고침해서 실시간 대화처럼 느껴지게 한다.
     // (다른 탭에서는 기존처럼 15초 주기 — 서버 부담을 늘리지 않기 위해 채팅 탭 밖에서는 끈다)
-    function startChatFastPoll() {
-      stopChatFastPoll();
-      chatFastPollInterval = setInterval(loadFromCloudSilently, 5000);
-    }
-    function stopChatFastPoll() {
-      if (chatFastPollInterval) { clearInterval(chatFastPollInterval); chatFastPollInterval = null; }
-    }
+    // (이제 새로고침은 schedulePoll 타이머 하나가 담당한다. 채팅 탭에 들어가면 즉시 한 번 받고 5초 주기로 전환)
+    function startChatFastPoll() { schedulePoll(300); }
+    function stopChatFastPoll() { /* 다음 타이머부터 자동으로 15초 주기로 돌아감 */ }
 
     // ------------------------------------------------------------------
     // 알림음 — 사이트를 열어둔 상태(포그라운드)에서 새 알림이 도착했을 때 짧은 차임벨을 울려준다.
@@ -4002,7 +4384,8 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     setTimeout(probeDriveMedia, 1500); // 동영상 기본 플레이어 사용 가능 여부를 미리 확인
     renderIdentityUI(); // 기기에 저장된 "이 기기의 주인"을 화면에 반영
     if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 600); // 처음 쓰는 기기면 먼저 누구 폰인지 고르게
-    ensurePushRegistration(false).catch(() => {}); // 토큰이 바뀌었거나 주인이 바뀌었으면 서버 등록 갱신
+    // 토큰이 바뀌었거나 주인이 바뀌었으면 서버 등록 갱신 — 첫 화면을 다 그린 뒤에 (알림을 켠 기기만 SDK를 받는다)
+    setTimeout(() => ensurePushRegistration(false).catch(() => {}), 2000);
     loadChatMessages();
     loadChatReadReceipts();
     renderChatMessages();
@@ -4010,8 +4393,8 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     updateSettingsBadge();
     updateNotificationSoundUI();
 
-    handleIncomingPushLink(); loadFromCloudSilently(); // 첫 동기화가 끝난 뒤에 알림 클릭으로 들어온 이동을 처리
-    setInterval(loadFromCloudSilently, 15000);
+    handleIncomingPushLink(); // 알림을 눌러서 들어온 경우 해당 항목으로 이동 (내부에서 첫 동기화를 기다린다)
+    loadFromCloudSilently().finally(() => schedulePoll());
   </script>
   <!-- 레이아웃 테마 시트 -->
   <div class="modal-overlay" id="layoutModal" onclick="closeLayoutModal()">
@@ -4035,6 +4418,7 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
     </div>
     <div class="tabbar-btn page-tab-btn" id="tabChat" onclick="switchPage('chat')">
       <span class="tabbar-icon">💬</span><span class="tabbar-label">채팅</span>
+      <span class="nav-settings-badge" id="navChatBadge" style="display:none;"></span>
     </div>
     <div class="tabbar-btn page-tab-btn" id="tabSettings" onclick="switchPage('settings')">
       <span class="tabbar-icon">⚙</span><span class="tabbar-label">설정</span>
@@ -4303,6 +4687,53 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
       window.addEventListener("resize", __updateVVH);
     });
     applyStoredLayouts();
+
+    /* ---- 폰 "뒤로가기"로 창 닫기 ----
+       예전엔 사진 보기나 설정 창이 열린 상태에서 안드로이드 뒤로가기(또는 아이폰 스와이프)를 하면
+       창이 닫히는 게 아니라 사이트 자체가 꺼져 버렸다. 창이 열려 있는 동안 히스토리에 자리 하나를 만들어
+       두고, 뒤로가기가 오면 맨 위 창만 닫는다. */
+    (function setupBackButtonForModals() {
+      var SEL = '.modal-overlay.active, .lightbox-overlay.active';
+      var guardActive = false, ignorePop = false, backTimer = null;
+      function anyOpen() { return document.querySelector(SEL); }
+      function topmost() {
+        var open = Array.prototype.slice.call(document.querySelectorAll(SEL));
+        if (!open.length) return null;
+        open.sort(function (a, b) { return (parseInt(getComputedStyle(b).zIndex, 10) || 0) - (parseInt(getComputedStyle(a).zIndex, 10) || 0); });
+        return open[0];
+      }
+      function closeModalEl(el) {
+        var id = el.id;
+        var fn = (typeof ESC_CLOSABLE_MODALS !== 'undefined' && ESC_CLOSABLE_MODALS[id]) || (id === 'layoutModal' ? closeLayoutModal : null);
+        if (fn) fn(); else el.classList.remove('active');
+      }
+      function sync() {
+        if (anyOpen()) {
+          clearTimeout(backTimer); backTimer = null;
+          if (!guardActive) { try { history.pushState({ jjModal: 1 }, ''); guardActive = true; } catch (e) {} }
+        } else if (guardActive && !backTimer) {
+          // 화면 버튼으로 닫았으면 만들어 둔 히스토리 자리도 정리 (다른 창으로 바로 이어지는 경우는 유지)
+          backTimer = setTimeout(function () {
+            backTimer = null;
+            if (!anyOpen() && guardActive) { guardActive = false; ignorePop = true; history.back(); }
+          }, 60);
+        }
+      }
+      var mo = new MutationObserver(sync);
+      document.querySelectorAll('.modal-overlay, .lightbox-overlay').forEach(function (el) {
+        mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+      });
+      window.addEventListener('popstate', function () {
+        if (ignorePop) { ignorePop = false; return; }
+        if (!guardActive) return;
+        guardActive = false;
+        var el = topmost();
+        if (el) closeModalEl(el);
+        // 닫을 수 없는 창(처음 계정 선택)이거나 아직 다른 창이 남아 있으면 자리를 다시 만든다
+        if (anyOpen()) { try { history.pushState({ jjModal: 1 }, ''); guardActive = true; } catch (e) {} }
+      });
+      sync();
+    })();
   </script>
 </body>
 </html>
