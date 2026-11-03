@@ -640,7 +640,8 @@ section.app-section { width:100%; max-width:560px; margin:0 auto; padding:20px v
 /* ---------- 13. 채팅 ---------- */
 .chat-container {
   max-width:640px; margin:0 auto; display:flex; flex-direction:column;
-  height:calc(var(--vvh, 100vh) - 52px - var(--tabbar-h)); padding:0;
+  /* 상단바·하단 탭바의 "실제" 높이를 JS가 재서 넣는다 (홈 화면 앱은 상단바가 시계 영역만큼 더 길어서 52px로 고정 계산하면 입력칸이 탭바 뒤로 숨었다) */
+  height:calc(var(--vvh, 100vh) - var(--navh, 52px) - var(--tabh, var(--tabbar-h))); padding:0;
 }
 .chat-header {
   flex-shrink:0; display:flex; align-items:center; gap:10px;
@@ -1063,7 +1064,7 @@ footer.apple-footer { display:none; }
   .mood-bar { max-width:1100px; padding:16px 32px 0; }
 
   .memories-container, .chat-container, .settings-container { max-width:1100px; padding-left:32px; padding-right:32px; }
-  .chat-container { height:calc(var(--vvh, 100vh) - 52px); } /* PC에는 하단 탭바가 없으므로 그만큼 빈 공간이 생기지 않게 */
+  .chat-container { height:calc(var(--vvh, 100vh) - var(--navh, 52px)); } /* PC에는 하단 탭바가 없으므로 그만큼 빈 공간이 생기지 않게 */
   .chat-bubble-row > div { max-width:min(72%, 560px); }      /* 넓은 화면에서 말풍선 한 줄이 너무 길어지지 않게 */
   .memories-grid { grid-template-columns:repeat(4,1fr); }
 
@@ -3546,6 +3547,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       } else if (page === 'chat') {
         document.getElementById('view-chat').classList.add('active');
         document.getElementById('tabChat').classList.add('active');
+        if (typeof window.__updateVVH === 'function') window.__updateVVH();
         renderChatMessages();
         markChatAsReadIfNeeded(); // 채팅 탭을 열어봤으니 지금까지 온 메시지는 "읽음" 처리
         startChatFastPoll();
@@ -5409,6 +5411,16 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           if (!__isTextField(document.activeElement)) {
             document.body.classList.remove('kb-open');
             __updateVVH();
+            // 키보드가 내려가는 애니메이션 동안 화면 크기가 계속 바뀌므로 몇 번 더 맞추고,
+            // 사파리가 밀어 올려 둔 화면을 제자리로 돌린다
+            [150, 350, 700].forEach(function (ms) {
+              setTimeout(function () {
+                if (document.body.classList.contains('kb-open')) return;
+                __updateVVH();
+                var cv = document.getElementById('view-chat');
+                if (cv && cv.classList.contains('active') && window.scrollY !== 0) { try { window.scrollTo(0, 0); } catch (e) {} }
+              }, ms);
+            });
           }
         }, 80);
       });
@@ -5419,6 +5431,15 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         var o = vv ? vv.offsetTop : 0;
         document.documentElement.style.setProperty("--vvh", Math.round(h) + "px");
         document.documentElement.style.setProperty("--vvo", Math.round(o) + "px");
+        // 상단바/하단 탭바 실제 높이 (안전 영역·홈 화면 앱 여부에 따라 달라짐)
+        var navEl = document.querySelector('.apple-nav');
+        var tabEl = document.querySelector('.tabbar');
+        var navH = navEl && getComputedStyle(navEl).display !== 'none' ? navEl.getBoundingClientRect().height : 0;
+        if (!document.body.classList.contains('kb-open')) {
+          var tabH = tabEl && getComputedStyle(tabEl).display !== 'none' ? tabEl.getBoundingClientRect().height : 0;
+          document.documentElement.style.setProperty("--tabh", Math.round(tabH) + "px");
+        }
+        document.documentElement.style.setProperty("--navh", Math.round(navH) + "px");
         var chatView = document.getElementById('view-chat');
         var isResize = !ev || ev.type === 'resize';
         if (isResize && document.body.classList.contains('kb-open') && chatView && chatView.classList.contains('active')) {
@@ -5428,6 +5449,9 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         }
       }
       __updateVVH();
+      window.__updateVVH = __updateVVH;
+      window.addEventListener('orientationchange', function () { setTimeout(__updateVVH, 300); });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { __updateVVH(); });
       if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", __updateVVH);
         window.visualViewport.addEventListener("scroll", __updateVVH);
