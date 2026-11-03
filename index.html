@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032204" />
+  <meta name="jj-version" content="202611032207" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1329,6 +1329,9 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 }
 /* 문답: 몇 번째 질문인지 */
 .qna-counter { opacity:.6; font-weight:600; margin-left:4px; font-size:.9em; }
+/* 동그란 새로고침 버튼 안에서는 번호를 숨긴다 (좁은 버튼 밖으로 글자가 삐져나왔음) */
+.btn-refresh-q { white-space:nowrap; }
+.btn-refresh-q .qna-counter { display:none; }
 /* 문답: 내 계정이 정해진 기기에서는 상대 칸 입력창을 숨긴다 */
 body[data-identity="1"][data-me="Him"] #herInputWrap,
 body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
