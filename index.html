@@ -2,7 +2,7 @@
 <html lang="ko" data-theme="midnight">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
   <title>정수와진하</title>
   <!-- 잠금: 로그인 토큰이 있는 기기만 내용을 보여준다 (화면이 그려지기 전에 바로 판단해서 깜빡임 없음) -->
   <script>
@@ -1084,7 +1084,7 @@ footer.apple-footer { display:none; }
      사파리가 화면을 밀어 올린 만큼(--vvo) 같이 따라가게 해서 키보드 바로 위에 입력창이 딱 붙도록 한다.
    · 입력창 글자 16px 미만이면 iOS가 자동 확대하므로 모바일에서는 16px로 고정. */
 @media (max-width:1023px) {
-  input[type="text"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"], input[type="number"], input[type="date"], input:not([type]), textarea, select {
+  input[type="text"], input[type="password"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"], input:not([type]), textarea, select {
     font-size:16px !important;
   }
   body.kb-open .tabbar { display:none !important; }
@@ -1211,6 +1211,15 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 #toastMessage { overflow:hidden; text-overflow:ellipsis; }
 /* 사진 보기 화면에서 [삭제]를 눌렀을 때 확인창이 사진 뒤에 숨어서 안 보이던 문제 (z-index 2000 < 3000) */
 #deleteConfirmModal { z-index:3500; }
+
+/* ---------- 27. 화면 확대 방지 (2026-11) ----------
+   · iPad처럼 넓은 터치 화면에서도 입력칸이 16px 미만이면 자동 확대되므로 터치 기기 전체에 16px 적용
+   · 화면 아무 데나 두 번 빠르게 탭했을 때 확대되는 것 방지 (두 손가락 확대는 그대로 가능)
+   · 가로로 돌렸을 때 글자가 제멋대로 커지는 것 방지 */
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; touch-action:manipulation; }
+@media (hover:none) and (pointer:coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), textarea, select { font-size:16px !important; }
+}
 
 /* ---------- 26. 비밀번호 잠금 화면 ---------- */
 .lock-screen {
@@ -5167,6 +5176,15 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       });
       document.addEventListener('focusout', function (e) {
         if (!__isTextField(e.target)) return;
+        // iOS가 확대해 둔 상태로 남아 있으면 원래 배율(1배)로 되돌린다
+        setTimeout(function () {
+          if (__isTextField(document.activeElement)) return;
+          var vv = window.visualViewport;
+          if (vv && vv.scale > 1.01) {
+            var m = document.querySelector('meta[name="viewport"]');
+            if (m) { var c = m.getAttribute('content'); m.setAttribute('content', c + ', user-scalable=no'); setTimeout(function () { m.setAttribute('content', c); }, 300); }
+          }
+        }, 150);
         clearTimeout(__kbOffTimer);
         __kbOffTimer = setTimeout(function () {
           if (!__isTextField(document.activeElement)) {
