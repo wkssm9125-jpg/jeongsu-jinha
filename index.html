@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032253" />
+  <meta name="jj-version" content="202611032259" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1681,9 +1681,231 @@ html:not([data-theme="win98"]) .bucket-list { gap:4px; }
   #view-home.active #qna { grid-column:2; }
   .cal-cell { min-height:64px; }
 }
+
+/* =========================================================================
+   34. 트론: 새로운 시작 (data-theme="tron")
+   검은 그리드 세계 · 시안 네온(정수) / 오렌지 네온(진하) · 움직이는 바닥 그리드 · 라이트 사이클 · 빛이 흐르는 테두리
+   애니메이션은 대부분 transform/opacity 로만 움직여서 폰 배터리·성능 부담을 줄였다
+   (기기 설정에서 "동작 줄이기"를 켜면 전부 멈춘다)
+   ========================================================================= */
+[data-theme="tron"] {
+  --tron-cyan:#00e5ff; --tron-cyan-soft:rgba(0,229,255,.38); --tron-orange:#ff8a1f; --tron-ink:#02060b;
+  --bg-primary:#02060b; --bg-card:rgba(3,18,28,.74); --bg-card-hover:rgba(6,34,50,.82);
+  --bg-glass:rgba(0,229,255,.07); --border-card:rgba(0,229,255,.3); --border-card-hover:rgba(0,229,255,.6);
+  --text-primary:#e6fdff; --text-secondary:#a9e9f3; --text-tertiary:#5fa9b8;
+  --accent-blue:#00e5ff; --accent-pink:#00e5ff; --accent-green:#3dffb0; --accent-orange:#ff8a1f;
+  --accent-shadow:rgba(0,229,255,.45);
+  --accent-gradient:linear-gradient(90deg,#00e5ff,#7af4ff);
+  --modal-bg:#03121c; --nav-bg:rgba(1,8,14,.86);
+  --hero-glow-1:#00e5ff; --hero-glow-2:#ff8a1f;
+  --chat-him:#00e5ff; --chat-her:#ff8a1f;
+  --tron-font:"Orbitron", var(--font-family);
+}
+#tronBg { display:none; }
+[data-theme="tron"], [data-theme="tron"] body { background-color:#02060b !important; }
+[data-theme="tron"] body { background-color:transparent !important; }
+[data-theme="tron"] #tronBg { display:block; position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; background:#02060b; }
+
+/* 하늘 · 지평선 빛 */
+[data-theme="tron"] .tron-sky { position:absolute; inset:0; background:
+  radial-gradient(120% 55% at 50% 64%, rgba(0,229,255,.20), transparent 60%),
+  radial-gradient(60% 30% at 50% 64%, rgba(255,138,31,.10), transparent 70%),
+  linear-gradient(#010409 0%, #02101a 58%, #000 100%); }
+[data-theme="tron"] .tron-sun { position:absolute; left:50%; top:64%; width:70vmin; height:70vmin; margin:-35vmin 0 0 -35vmin;
+  border-radius:50%; border:1px solid rgba(0,229,255,.25); box-shadow:0 0 40px rgba(0,229,255,.15), inset 0 0 40px rgba(0,229,255,.12);
+  clip-path:inset(0 0 50% 0); animation:tronSun 6s ease-in-out infinite; }
+@keyframes tronSun { 0%,100%{ transform:scale(1); opacity:.55 } 50%{ transform:scale(1.06); opacity:1 } }
+
+/* 바닥 그리드 (앞으로 계속 달려가는 느낌) */
+[data-theme="tron"] .tron-floor-wrap { position:absolute; left:0; right:0; top:64%; bottom:0; perspective:240px; perspective-origin:50% 0%; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 22%); mask-image:linear-gradient(to bottom, transparent 0%, #000 22%); }
+[data-theme="tron"] .tron-floor { position:absolute; left:-100%; width:300%; top:0; height:300%; transform-origin:50% 0;
+  background-image:linear-gradient(rgba(0,229,255,.75) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.55) 1px, transparent 1px);
+  background-size:44px 44px; transform:rotateX(62deg) translateY(0); animation:tronRun 1.6s linear infinite; will-change:transform; }
+@keyframes tronRun { to { transform:rotateX(62deg) translateY(44px); } }
+[data-theme="tron"] .tron-horizon { position:absolute; left:0; right:0; top:64%; height:1px; background:linear-gradient(90deg, transparent, #7af4ff 20%, #fff 50%, #7af4ff 80%, transparent);
+  box-shadow:0 0 12px #00e5ff, 0 0 30px rgba(0,229,255,.7); animation:tronHorizon 3.2s ease-in-out infinite; }
+@keyframes tronHorizon { 0%,100%{ opacity:.65 } 50%{ opacity:1 } }
+
+/* 라이트 사이클: 빛 꼬리를 남기며 화면을 가로지른다 */
+[data-theme="tron"] .tron-cycle { position:absolute; height:2px; width:38vw; left:0; border-radius:2px; opacity:0; will-change:transform, opacity; }
+[data-theme="tron"] .tron-cycle.c1 { top:76%; background:linear-gradient(90deg, transparent, rgba(0,229,255,.25) 40%, #00e5ff 92%, #fff); box-shadow:0 0 10px #00e5ff, 0 0 22px rgba(0,229,255,.8); animation:tronCycleR 7s cubic-bezier(.5,0,.6,1) infinite 1s; }
+[data-theme="tron"] .tron-cycle.c2 { top:86%; background:linear-gradient(270deg, transparent, rgba(255,138,31,.25) 40%, #ff8a1f 92%, #fff); box-shadow:0 0 10px #ff8a1f, 0 0 22px rgba(255,138,31,.8); animation:tronCycleL 8.5s cubic-bezier(.5,0,.6,1) infinite 3.5s; }
+[data-theme="tron"] .tron-cycle.c3 { top:22%; height:1px; width:24vw; background:linear-gradient(90deg, transparent, rgba(0,229,255,.5), #bffaff); box-shadow:0 0 8px #00e5ff; animation:tronCycleR 11s linear infinite 6s; }
+@keyframes tronCycleR { 0%{ transform:translateX(-45vw); opacity:0 } 6%{ opacity:1 } 34%{ opacity:1 } 40%,100%{ transform:translateX(110vw); opacity:0 } }
+@keyframes tronCycleL { 0%{ transform:translateX(110vw); opacity:0 } 6%{ opacity:1 } 34%{ opacity:1 } 40%,100%{ transform:translateX(-45vw); opacity:0 } }
+
+/* 화면 전체를 천천히 훑는 스캔 라인 */
+[data-theme="tron"] .tron-scan { position:absolute; left:0; right:0; top:0; height:120px; background:linear-gradient(to bottom, transparent, rgba(0,229,255,.06) 70%, rgba(0,229,255,.16) 99%, transparent);
+  animation:tronScanDown 9s linear infinite; will-change:transform; }
+@keyframes tronScanDown { from{ transform:translateY(-140px) } to{ transform:translateY(110vh) } }
+
+/* ---- 카드: 네온 테두리 + 모서리 꺾쇠 + 위쪽 테두리를 따라 흐르는 빛 ---- */
+[data-theme="tron"] .hero-inner, [data-theme="tron"] .anniversary-grid, [data-theme="tron"] .cal-box, [data-theme="tron"] .qna-box,
+[data-theme="tron"] .bucket-card, [data-theme="tron"] .note-box, [data-theme="tron"] .settings-group, [data-theme="tron"] .settings-profile,
+[data-theme="tron"] .memory-card, [data-theme="tron"] .apple-modal, [data-theme="tron"] .lock-card {
+  position:relative; background:rgba(2,14,22,.78) !important; border:1px solid var(--tron-cyan-soft) !important;
+  box-shadow:0 0 16px rgba(0,229,255,.16), inset 0 0 24px rgba(0,229,255,.06) !important;
+}
+[data-theme="tron"] .hero-inner::before, [data-theme="tron"] .cal-box::before, [data-theme="tron"] .qna-box::before,
+[data-theme="tron"] .bucket-card::before, [data-theme="tron"] .note-box::before, [data-theme="tron"] .settings-group::before,
+[data-theme="tron"] .lock-card::before {
+  content:""; position:absolute; inset:-1px; pointer-events:none; z-index:1; background:
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) top left / 14px 2px no-repeat,
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) top left / 2px 14px no-repeat,
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) top right / 14px 2px no-repeat,
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) top right / 2px 14px no-repeat,
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) bottom left / 14px 2px no-repeat,
+    linear-gradient(var(--tron-cyan),var(--tron-cyan)) bottom left / 2px 14px no-repeat,
+    linear-gradient(var(--tron-orange),var(--tron-orange)) bottom right / 14px 2px no-repeat,
+    linear-gradient(var(--tron-orange),var(--tron-orange)) bottom right / 2px 14px no-repeat;
+  filter:drop-shadow(0 0 4px var(--tron-cyan));
+}
+[data-theme="tron"] .hero-inner::after, [data-theme="tron"] .anniversary-grid::after, [data-theme="tron"] .cal-box::after, [data-theme="tron"] .qna-box::after,
+[data-theme="tron"] .bucket-card::after, [data-theme="tron"] .note-box::after, [data-theme="tron"] .settings-group::after {
+  content:""; position:absolute; left:0; right:0; top:-1px; height:2px; pointer-events:none; z-index:1;
+  background:linear-gradient(90deg, transparent 0 42%, #dffcff 50%, transparent 58% 100%); background-size:260% 100%;
+  animation:tronEdge 5s linear infinite;
+}
+[data-theme="tron"] .cal-box::after { animation-delay:-1.2s; }
+[data-theme="tron"] .qna-box::after { animation-delay:-2.4s; }
+[data-theme="tron"] .bucket-card::after { animation-delay:-3.1s; }
+[data-theme="tron"] .note-box::after { animation-delay:-4s; }
+@keyframes tronEdge { from{ background-position:100% 0 } to{ background-position:0 0 } }
+
+/* ---- 글자 ---- */
+[data-theme="tron"] .section-title, [data-theme="tron"] .settings-title, [data-theme="tron"] .memories-header .section-title {
+  color:#bff8ff !important; font-family:var(--tron-font); letter-spacing:.06em; text-shadow:0 0 6px rgba(0,229,255,.9), 0 0 18px rgba(0,229,255,.45);
+  animation:tronFlicker 2.6s linear 1 both;
+}
+[data-theme="tron"] .section-title::before { content:"◇ "; color:var(--tron-orange); text-shadow:0 0 8px var(--tron-orange); font-size:.8em; }
+@keyframes tronFlicker { 0%{opacity:0} 6%{opacity:1} 9%{opacity:.25} 13%{opacity:1} 17%{opacity:.4} 21%,100%{opacity:1} }
+[data-theme="tron"] .nav-brand, [data-theme="tron"] .sidebar-brand { font-family:var(--tron-font); letter-spacing:.08em; color:#dffcff; text-shadow:0 0 8px rgba(0,229,255,.8); }
+[data-theme="tron"] .heart { color:var(--tron-orange) !important; text-shadow:0 0 10px var(--tron-orange); display:inline-block; animation:tronHeart 1.6s ease-in-out infinite; }
+@keyframes tronHeart { 0%,100%{ transform:scale(1) } 15%{ transform:scale(1.25) } 30%{ transform:scale(1) } 45%{ transform:scale(1.15) } }
+
+/* 디데이 숫자: 네온 맥동 */
+[data-theme="tron"] .dday-big .dday-num { font-family:var(--tron-font); font-weight:900; color:#eaffff; letter-spacing:.02em;
+  text-shadow:0 0 6px #00e5ff, 0 0 18px #00e5ff, 0 0 40px rgba(0,229,255,.6); animation:tronPulse 3s ease-in-out infinite; }
+[data-theme="tron"] .dday-big .dday-unit { color:var(--tron-orange); text-shadow:0 0 10px var(--tron-orange); }
+@keyframes tronPulse { 0%,100%{ text-shadow:0 0 6px #00e5ff, 0 0 18px #00e5ff, 0 0 40px rgba(0,229,255,.55) } 50%{ text-shadow:0 0 4px #00e5ff, 0 0 10px #00e5ff, 0 0 22px rgba(0,229,255,.35); opacity:.92 } }
+[data-theme="tron"] .dday-container { background:rgba(0,229,255,.06) !important; border:1px solid var(--tron-cyan-soft) !important; }
+[data-theme="tron"] .dday-card .dday-num { font-family:var(--tron-font); color:#bff8ff; text-shadow:0 0 6px rgba(0,229,255,.8); }
+[data-theme="tron"] .dday-card:last-child .dday-num { color:var(--tron-orange); text-shadow:0 0 8px var(--tron-orange); }
+/* 커플 사진: 아이덴티티 디스크처럼 회전하는 링 */
+[data-theme="tron"] .couple-photo-frame { box-shadow:0 0 0 2px #02060b, 0 0 0 3px var(--tron-cyan), 0 0 16px var(--tron-cyan); border-radius:50% !important; }
+[data-theme="tron"] .couple-photo-wrapper::after { content:""; position:absolute; inset:-7px; border-radius:50% !important; pointer-events:none;
+  background:conic-gradient(from 0deg, transparent 0 20%, var(--tron-cyan) 25%, transparent 30% 55%, var(--tron-orange) 60%, transparent 65% 100%);
+  -webkit-mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%); mask:radial-gradient(circle, transparent 62%, #000 63% 70%, transparent 71%);
+  animation:tronSpin 4s linear infinite; }
+@keyframes tronSpin { to { transform:rotate(360deg) } }
+
+/* ---- 버튼: 속이 빈 네온 버튼, 누르면 꽉 찬 빛 ---- */
+[data-theme="tron"] .btn-save-qna, [data-theme="tron"] .btn-add-bucket, [data-theme="tron"] .btn-save-note, [data-theme="tron"] .btn-add-memory,
+[data-theme="tron"] .btn-modal-save, [data-theme="tron"] .cal-add-btn {
+  background:rgba(0,229,255,.1) !important; color:#bff8ff !important; border:1px solid var(--tron-cyan) !important;
+  text-shadow:0 0 6px rgba(0,229,255,.9); box-shadow:0 0 10px rgba(0,229,255,.35), inset 0 0 10px rgba(0,229,255,.18);
+  font-family:var(--tron-font); letter-spacing:.04em; transition:background .15s, box-shadow .15s, color .15s;
+}
+[data-theme="tron"] .btn-save-qna:active, [data-theme="tron"] .btn-add-bucket:active, [data-theme="tron"] .btn-save-note:active, [data-theme="tron"] .btn-add-memory:active,
+[data-theme="tron"] .btn-modal-save:active, [data-theme="tron"] .cal-add-btn:active {
+  background:var(--tron-cyan) !important; color:#02060b !important; text-shadow:none; box-shadow:0 0 24px var(--tron-cyan);
+}
+[data-theme="tron"] .tabbar-badge, [data-theme="tron"] .nav-settings-badge, [data-theme="tron"] .sidebar-nav-badge, [data-theme="tron"] .push-history-count-badge {
+  background:var(--tron-orange) !important; color:#1a0800 !important; box-shadow:0 0 10px var(--tron-orange);
+}
+[data-theme="tron"] .category-btn.active, [data-theme="tron"] .identity-check { color:#02060b !important; }
+
+/* ---- 입력칸 ---- */
+[data-theme="tron"] input:not([type=checkbox]):not([type=radio]):not([type=range]), [data-theme="tron"] textarea, [data-theme="tron"] select {
+  background:rgba(0,20,30,.7) !important; color:#e6fdff; caret-color:var(--tron-cyan);
+  border:1px solid rgba(0,229,255,.22) !important; border-bottom-color:rgba(0,229,255,.6) !important;
+}
+[data-theme="tron"] input:focus, [data-theme="tron"] textarea:focus { border-color:var(--tron-cyan) !important; box-shadow:0 0 12px rgba(0,229,255,.45) !important; }
+[data-theme="tron"] ::placeholder { color:#3f8796 !important; }
+
+/* ---- 상단바 · 탭바 ---- */
+[data-theme="tron"] nav.apple-nav { box-shadow:0 1px 0 rgba(0,229,255,.45), 0 6px 18px rgba(0,229,255,.1); }
+[data-theme="tron"] .tabbar { box-shadow:0 -1px 0 rgba(0,229,255,.55), 0 -8px 22px rgba(0,229,255,.12); }
+[data-theme="tron"] .tabbar-btn { color:#4f97a6; }
+[data-theme="tron"] .tabbar-btn.active { color:var(--tron-cyan); text-shadow:0 0 8px var(--tron-cyan); }
+[data-theme="tron"] .tabbar-btn.active .tabbar-icon { filter:drop-shadow(0 0 6px var(--tron-cyan)); animation:tronPulseIcon 2.4s ease-in-out infinite; }
+@keyframes tronPulseIcon { 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.12) } }
+[data-theme="tron"] .sidebar-nav-btn.active { color:var(--tron-cyan) !important; background:rgba(0,229,255,.1) !important; box-shadow:inset 3px 0 0 var(--tron-cyan); }
+[data-theme="tron"] .sync-status-badge { font-family:var(--tron-font); letter-spacing:.04em; }
+
+/* ---- 기념일 · 캘린더 · 문답 · 버킷 · 쪽지 ---- */
+[data-theme="tron"] .anniversary-card { background:rgba(0,229,255,.06) !important; border:1px solid rgba(0,229,255,.2) !important; }
+[data-theme="tron"] .anni-dday { color:var(--tron-orange) !important; font-family:var(--tron-font); text-shadow:0 0 8px rgba(255,138,31,.8); }
+[data-theme="tron"] .anni-info h4 { font-family:var(--tron-font); }
+[data-theme="tron"] .cal-title { font-family:var(--tron-font); color:#bff8ff; text-shadow:0 0 6px rgba(0,229,255,.8); }
+[data-theme="tron"] .cal-nav-btn { background:rgba(0,229,255,.08) !important; color:var(--tron-cyan); border:1px solid rgba(0,229,255,.35) !important; }
+[data-theme="tron"] .cal-num { font-family:var(--tron-font); font-weight:500; }
+[data-theme="tron"] .cal-cell.today .cal-num { color:#02060b !important; background:var(--tron-cyan); text-decoration:none; box-shadow:0 0 12px var(--tron-cyan); animation:tronPulseBox 2s ease-in-out infinite; margin:0 auto; min-width:24px; }
+@keyframes tronPulseBox { 0%,100%{ box-shadow:0 0 6px var(--tron-cyan) } 50%{ box-shadow:0 0 18px var(--tron-cyan) } }
+[data-theme="tron"] .cal-cell.sel { background:rgba(0,229,255,.12) !important; box-shadow:inset 0 0 0 1px var(--tron-cyan), 0 0 10px rgba(0,229,255,.35); }
+[data-theme="tron"] .cal-cell.sun .cal-num, [data-theme="tron"] .cal-week span:first-child { color:var(--tron-orange); }
+[data-theme="tron"] .cal-lb.ev.him { background:rgba(0,229,255,.18); color:#bff8ff; box-shadow:inset 2px 0 0 var(--tron-cyan); }
+[data-theme="tron"] .cal-lb.ev.her { background:rgba(255,138,31,.18); color:#ffd9b3; box-shadow:inset 2px 0 0 var(--tron-orange); }
+[data-theme="tron"] .cal-lb.ann, [data-theme="tron"] .cal-item.ann { color:var(--tron-orange); text-shadow:0 0 6px rgba(255,138,31,.7); }
+[data-theme="tron"] .cal-item { background:rgba(0,229,255,.05) !important; border-left:2px solid rgba(0,229,255,.5) !important; }
+[data-theme="tron"] .cal-item.ev.her { border-left-color:var(--tron-orange) !important; }
+[data-theme="tron"] .cal-item.ev .cal-item-mark::before { box-shadow:0 0 8px currentColor; }
+[data-theme="tron"] .qna-person-card { background:rgba(0,229,255,.07) !important; border-left:2px solid var(--tron-cyan) !important; }
+[data-theme="tron"] .qna-person-card:nth-child(2) { background:rgba(255,138,31,.07) !important; border-left-color:var(--tron-orange) !important; }
+[data-theme="tron"] .qna-person-header { text-shadow:0 0 6px currentColor; font-family:var(--tron-font); letter-spacing:.06em; }
+[data-theme="tron"] .progress-bar-bg { background:rgba(0,229,255,.1) !important; overflow:hidden; }
+[data-theme="tron"] .progress-bar-fill { background:linear-gradient(90deg, #00a8c4, #00e5ff) !important; box-shadow:0 0 12px var(--tron-cyan); position:relative; }
+[data-theme="tron"] .progress-bar-fill::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); background-size:40% 100%; background-repeat:no-repeat; animation:tronShine 2.2s linear infinite; }
+@keyframes tronShine { from{ background-position:-60% 0 } to{ background-position:160% 0 } }
+[data-theme="tron"] .bucket-item { background:rgba(0,229,255,.05) !important; border-left:2px solid rgba(0,229,255,.35) !important; transition:background .2s, box-shadow .2s; }
+[data-theme="tron"] .bucket-checkbox { border:1px solid var(--tron-cyan) !important; box-shadow:0 0 6px rgba(0,229,255,.5); }
+[data-theme="tron"] .bucket-item.done .bucket-checkbox { background:var(--tron-cyan) !important; color:#02060b !important; box-shadow:0 0 12px var(--tron-cyan); }
+[data-theme="tron"] .note-item { background:rgba(255,138,31,.07) !important; border-left:2px solid var(--tron-orange) !important; animation:tronRez .5s ease-out both; }
+[data-theme="tron"] .note-item.blue { background:rgba(0,229,255,.07) !important; border-left-color:var(--tron-cyan) !important; }
+@keyframes tronRez { 0%{ opacity:0; transform:scaleY(.2); filter:brightness(3) } 60%{ opacity:1; transform:scaleY(1.03); filter:brightness(1.6) } 100%{ transform:none; filter:none } }
+
+/* ---- 채팅: 빛나는 테두리 말풍선 ---- */
+[data-theme="tron"] .chat-bubble.sender-him { background:rgba(0,229,255,.12) !important; color:#e6fdff !important; border:1px solid var(--tron-cyan) !important; box-shadow:0 0 10px rgba(0,229,255,.35); }
+[data-theme="tron"] .chat-bubble.sender-her { background:rgba(255,138,31,.12) !important; color:#fff1e3 !important; border:1px solid var(--tron-orange) !important; box-shadow:0 0 10px rgba(255,138,31,.35); }
+[data-theme="tron"] .chat-container { background:rgba(2,10,16,.55); }
+
+/* ---- 추억 카드 · 모달 · 잠금 화면 ---- */
+[data-theme="tron"] .memory-card { transition:transform .2s, box-shadow .2s; }
+[data-theme="tron"] .memory-card:active { transform:scale(.98); box-shadow:0 0 22px rgba(0,229,255,.5) !important; }
+[data-theme="tron"] .memory-card img { filter:saturate(1.05) contrast(1.05); }
+[data-theme="tron"] .apple-modal { animation:tronRez .35s ease-out both; }
+[data-theme="tron"] .modal-title { font-family:var(--tron-font); color:#bff8ff; text-shadow:0 0 8px rgba(0,229,255,.8); }
+[data-theme="tron"] .lock-screen { background:radial-gradient(120% 60% at 50% 70%, rgba(0,229,255,.18), transparent 60%), #02060b !important; }
+[data-theme="tron"] .apple-toast { border:1px solid var(--tron-cyan) !important; box-shadow:0 0 18px rgba(0,229,255,.45) !important; background:rgba(2,14,22,.92) !important; font-family:var(--tron-font); }
+
+/* ---- 화면 전환: 디지털 재구성(de-rez) 효과 ---- */
+[data-theme="tron"] .page-view.active { animation:tronPageIn .55s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes tronPageIn {
+  0%{ opacity:0; transform:translateY(14px) scaleY(.97); filter:brightness(2.4) saturate(0) }
+  40%{ opacity:.8; filter:brightness(1.6) }
+  100%{ opacity:1; transform:none; filter:none }
+}
+/* 테마를 막 고른 순간: 화면이 켜지듯 번쩍 */
+html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
+@keyframes tronBoot { 0%{ filter:brightness(0) } 12%{ filter:brightness(2.2) contrast(1.4) } 18%{ filter:brightness(.4) } 30%{ filter:brightness(1.8) } 100%{ filter:none } }
+[data-theme="tron"] ::selection { background:var(--tron-cyan); color:#02060b; }
+[data-theme="tron"] ::-webkit-scrollbar { background:#02060b; }
+[data-theme="tron"] ::-webkit-scrollbar-thumb { background:rgba(0,229,255,.4); }
+@media (prefers-reduced-motion: reduce) { [data-theme="tron"] .tron-cycle, [data-theme="tron"] .tron-scan { display:none; } }
   </style>
 </head>
 <body>
+  <div id="tronBg" aria-hidden="true">
+    <div class="tron-sky"></div>
+    <div class="tron-sun"></div>
+    <div class="tron-floor-wrap"><div class="tron-floor"></div></div>
+    <div class="tron-horizon"></div>
+    <div class="tron-cycle c1"></div>
+    <div class="tron-cycle c2"></div>
+    <div class="tron-cycle c3"></div>
+    <div class="tron-scan"></div>
+  </div>
 
   <!-- 비밀번호 잠금 화면 -->
   <div class="lock-screen" id="lockScreen">
@@ -2342,6 +2564,13 @@ html:not([data-theme="win98"]) .bucket-list { gap:4px; }
           <div class="theme-card-info">
             <h5>선셋 골드</h5>
             <p>따스한 석양 앰버</p>
+          </div>
+        </div>
+        <div class="theme-card" id="theme-tron" style="grid-column: 1 / -1;" onclick="setTheme('tron')">
+          <div class="theme-color-dot" style="background: radial-gradient(circle at 50% 120%, #00e5ff 0 18%, transparent 19%), linear-gradient(0deg, rgba(0,229,255,.55) 0 2px, transparent 2px) 0 0 / 10px 10px, linear-gradient(90deg, rgba(0,229,255,.55) 0 2px, transparent 2px) 0 0 / 10px 10px, #02060b; box-shadow: 0 0 10px rgba(0,229,255,.8);"></div>
+          <div class="theme-card-info">
+            <h5>트론: 새로운 시작</h5>
+            <p>네온 그리드 · 라이트 사이클 · 빛나는 테두리 (애니메이션 많음)</p>
           </div>
         </div>
         <div class="theme-card" id="theme-win98" style="grid-column: 1 / -1;" onclick="setTheme('win98')">
@@ -3258,13 +3487,19 @@ html:not([data-theme="win98"]) .bucket-list { gap:4px; }
     // 그 때문에 25초 동안 상대방 소식 알림까지 숨겨졌다)
     // 윈도우 98 테마용 도트 글꼴(Galmuri, 무료 OFL)은 그 테마를 고른 기기에서만 받는다
     function ensureThemeFont(name) {
+      if (name === 'tron' && !document.getElementById('orbitronFont')) {
+        const t = document.createElement('link');
+        t.id = 'orbitronFont'; t.rel = 'stylesheet';
+        t.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap';
+        document.head.appendChild(t);
+      }
       if (name !== 'win98' || document.getElementById('galmuriFont')) return;
       const l = document.createElement('link');
       l.id = 'galmuriFont'; l.rel = 'stylesheet';
       l.href = 'https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css';
       document.head.appendChild(l);
     }
-    const THEME_STATUS_COLOR = { light: '#f5f5f7', win98: '#008080' };
+    const THEME_STATUS_COLOR = { light: '#f5f5f7', win98: '#008080', tron: '#02060b' };
     function setTheme(themeName) {
       ensureThemeFont(themeName);
       document.documentElement.setAttribute("data-theme", themeName);
@@ -3276,7 +3511,8 @@ html:not([data-theme="win98"]) .bucket-list { gap:4px; }
       const tc = document.querySelector('meta[name="theme-color"]');
       if (tc) tc.setAttribute('content', THEME_STATUS_COLOR[themeName] || '#000000');
 
-      showToast(`테마가 변경되었습니다!`, "🎨");
+      if (themeName === 'tron') { document.documentElement.classList.remove('tron-boot'); void document.documentElement.offsetWidth; document.documentElement.classList.add('tron-boot'); setTimeout(() => document.documentElement.classList.remove('tron-boot'), 1600); }
+      showToast(themeName === 'tron' ? 'THE GRID · 접속 완료' : `테마가 변경되었습니다!`, themeName === 'tron' ? '◇' : "🎨");
     }
 
     function loadTheme() {
@@ -6037,7 +6273,7 @@ html:not([data-theme="win98"]) .bucket-list { gap:4px; }
         var el = document.getElementById(map[kind]);
         if (el && found) el.innerText = found.name;
       });
-      var themeNames = { midnight:'미드나잇 다크', rose:'로맨틱 로즈', lavender:'라벤더 나이트', ocean:'오션 브리즈', forest:'포레스트 민트', sunset:'선셋 골드', light:'퓨어 애플 라이트', win98:'윈도우 98' };
+      var themeNames = { midnight:'미드나잇 다크', rose:'로맨틱 로즈', lavender:'라벤더 나이트', ocean:'오션 브리즈', forest:'포레스트 민트', sunset:'선셋 골드', light:'퓨어 애플 라이트', win98:'윈도우 98', tron:'트론: 새로운 시작' };
       var tEl = document.getElementById('settingsThemeState');
       if (tEl) tEl.innerText = themeNames[document.documentElement.getAttribute('data-theme')] || '미드나잇 다크';
     }
