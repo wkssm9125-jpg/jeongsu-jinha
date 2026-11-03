@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032150" />
+  <meta name="jj-version" content="202611032153" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -793,6 +793,19 @@ section.app-section { width:100%; max-width:560px; margin:0 auto; padding:20px v
   color:var(--text-primary); font-size:14px; padding:11px 14px; border-radius:14px; outline:none;
 }
 .memory-input-control:focus { border-color:var(--accent-pink); }
+/* 아이폰 사파리는 날짜 칸(type=date)을 자기 고유 너비로 그려서 화면 밖으로 삐져나가고 글자도 가운데로 몰린다.
+   기본 모양을 끄고 다른 입력칸과 똑같이 꽉 차게, 글자는 왼쪽 정렬로 맞춘다. */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
+  -webkit-appearance:none; appearance:none; display:block; width:100%; max-width:100%; min-width:0;
+  line-height:22px; text-align:left;
+}
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align:left; margin:0; min-height:22px; }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity:.65; cursor:pointer; }
+:root:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1); }
+/* 아이폰이 입력칸에 넣는 기본 안쪽 그림자·둥근 테두리 제거 (사이트 디자인으로 통일) */
+input[type="text"], input[type="password"], input[type="search"], input[type="email"], input[type="tel"], input[type="url"], input[type="number"], textarea {
+  -webkit-appearance:none; appearance:none;
+}
 textarea.memory-input-control { min-height:80px; resize:none; line-height:1.55; }
 /* 사진 선택: 브라우저 기본 버튼 대신 앱 스타일 버튼 + 선택한 파일 미리보기 */
 .file-input-hidden { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; pointer-events:none; }
