@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032148" />
+  <meta name="jj-version" content="202611032150" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1608,6 +1608,10 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           <span class="nav-settings-item-state" id="navSettingsPushState">끔</span>
           <div class="settings-switch"><i></i></div>
         </div>
+        <div class="nav-settings-item" onclick="openSoundModal()">
+          <span>🎵 알림음 고르기</span>
+          <span class="nav-settings-item-state" id="settingsSoundTypeState">차임</span>
+        </div>
         <div class="nav-settings-item toggle-row" id="navSettingsSound" onclick="toggleNotificationSound()">
           <span>🔊 알림음</span>
           <span class="nav-settings-item-state" id="navSettingsSoundState">켬</span>
@@ -1951,6 +1955,18 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
       <div class="modal-buttons">
         <button class="btn-modal-save" style="width:100%;" onclick="closeThemeModal()">완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 알림음 고르기 -->
+  <div class="modal-overlay" id="soundModal" onclick="closeSoundModal()">
+    <div class="apple-modal" onclick="event.stopPropagation()" style="max-width: 480px;">
+      <h3 class="modal-title">🎵 알림음 고르기</h3>
+      <p class="modal-desc">누르면 바로 들려드려요. 앱을 보고 있을 때 새 메시지·쪽지가 오면 이 소리가 나요.<br>앱이 닫혀 있을 때 오는 푸시 알림 소리는 폰 설정의 기본 알림음을 따라가요.</p>
+      <div class="theme-grid" id="soundGrid"></div>
+      <div class="modal-buttons">
+        <button class="btn-modal-save" style="width:100%;" onclick="closeSoundModal()">완료</button>
       </div>
     </div>
   </div>
@@ -4502,6 +4518,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       identityModal: () => closeIdentityModal(),
       passwordModal: () => closePasswordModal(),
       photoZoomViewer: () => closePhotoZoom(),
+      soundModal: () => closeSoundModal(),
     };
 
     document.addEventListener('keydown', (e) => {
@@ -5064,6 +5081,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const enabled = !isNotificationSoundEnabled();
       localStorage.setItem('notif_sound_enabled', enabled ? '1' : '0');
       updateNotificationSoundUI();
+    updateSoundTypeUI();
       if (enabled) playNotificationSound();
       showToast(enabled ? '알림음이 켜졌습니다.' : '알림음이 꺼졌습니다.', '🔊');
     }
@@ -5075,26 +5093,98 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       item.classList.toggle('sound-on', enabled);
       state.innerText = enabled ? '켬' : '끔';
     }
+    // ------------------------------------------------------------------
+    // 알림음 고르기 — 파일 없이 브라우저에서 직접 합성하는 소리들 (용량 0, 바로 재생)
+    // ⚠️ 앱이 닫혀 있을 때 오는 푸시 알림 소리는 폰(OS)이 정하는 것이라 웹에서는 바꿀 수 없다.
+    //    여기서 고른 소리는 "앱을 보고 있을 때" 새 메시지·쪽지가 오면 울린다.
+    // ------------------------------------------------------------------
+    let __audioCtx = null;
+    function getAudioCtx() {
+      try {
+        if (!__audioCtx) __audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (__audioCtx.state === 'suspended') __audioCtx.resume().catch(() => {});
+        return __audioCtx;
+      } catch (e) { return null; }
+    }
+    // 아이폰은 사용자가 화면을 한 번 만진 뒤에 만든 소리 장치만 소리를 낼 수 있다 → 첫 터치 때 미리 열어 둔다
+    ['pointerdown', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, function unlockAudio() {
+      const ctx = getAudioCtx();
+      if (ctx) { try { const b = ctx.createBuffer(1, 1, 22050); const src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (e) {} }
+      window.removeEventListener(ev, unlockAudio);
+    }, { passive: true }));
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && __audioCtx && __audioCtx.state !== 'running') __audioCtx.resume().catch(() => {}); });
+
+    // 음 하나: 주파수, 시작(초), 길이(초), 음색, 크기, 주파수 미끄러짐(끝 주파수)
+    function tone(ctx, out, f, at, dur, type, vol, fEnd) {
+      const t0 = ctx.currentTime + 0.02 + at;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(f, t0);
+      if (fEnd) o.frequency.exponentialRampToValueAtTime(fEnd, t0 + dur * 0.9);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + Math.min(0.015, dur / 4));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(out);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    }
+    const SOUND_PRESETS = {
+      chime:    { name: '차임',     glyph: '🔔', desc: '맑게 두 번 (기본)',
+                  play: (c, o) => { tone(c, o, 880, 0, 0.35); tone(c, o, 1174.66, 0.1, 0.4); } },
+      dingdong: { name: '띵동',     glyph: '🚪', desc: '현관 벨처럼 부드럽게',
+                  play: (c, o) => { tone(c, o, 659.25, 0, 0.55, 'triangle', 0.25); tone(c, o, 523.25, 0.28, 0.8, 'triangle', 0.25); } },
+      bubble:   { name: '뽀롱',     glyph: '🫧', desc: '물방울 톡',
+                  play: (c, o) => { tone(c, o, 420, 0, 0.16, 'sine', 0.28, 1250); tone(c, o, 700, 0.12, 0.14, 'sine', 0.18, 1600); } },
+      marimba:  { name: '실로폰',   glyph: '🎶', desc: '도-미-솔 통통',
+                  play: (c, o) => { [1046.5, 1318.5, 1568].forEach((f, i) => { tone(c, o, f, i * 0.09, 0.28, 'triangle', 0.22); tone(c, o, f * 4, i * 0.09, 0.06, 'sine', 0.04); }); } },
+      sparkle:  { name: '반짝',     glyph: '✨', desc: '높고 반짝이는 소리',
+                  play: (c, o) => { [1568, 2093, 2637, 3136].forEach((f, i) => tone(c, o, f, i * 0.05, 0.5 - i * 0.06, 'sine', 0.12)); } },
+      musicbox: { name: '오르골',   glyph: '🎁', desc: '짧은 멜로디',
+                  play: (c, o) => { [[1046.5, 0], [1318.5, 0.16], [1568, 0.32], [2093, 0.5]].forEach(([f, t]) => { tone(c, o, f, t, 0.6, 'sine', 0.18); tone(c, o, f * 2, t, 0.25, 'sine', 0.03); }); } },
+      heart:    { name: '두근',     glyph: '💓', desc: '심장 뛰는 소리 두 번',
+                  play: (c, o) => { tone(c, o, 110, 0, 0.16, 'sine', 0.6, 60); tone(c, o, 100, 0.22, 0.2, 'sine', 0.5, 55); } },
+      knock:    { name: '똑똑',     glyph: '🚪', desc: '나무 두드리는 소리',
+                  play: (c, o) => { [0, 0.15].forEach(t => { tone(c, o, 1900, t, 0.05, 'square', 0.08, 900); tone(c, o, 600, t, 0.07, 'sine', 0.3, 300); }); } }
+    };
+    SOUND_PRESETS.knock.glyph = '🪵';
+    function getSoundType() { const t = localStorage.getItem('notif_sound_type'); return SOUND_PRESETS[t] ? t : 'chime'; }
+    function playSoundPreset(type) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const p = SOUND_PRESETS[type] || SOUND_PRESETS.chime;
+      try {
+        const master = ctx.createGain(); master.gain.value = 1; master.connect(ctx.destination);
+        p.play(ctx, master);
+        setTimeout(() => { try { master.disconnect(); } catch (e) {} }, 2000);
+      } catch (e) {}
+    }
     function playNotificationSound() {
       if (!isNotificationSoundEnabled()) return;
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const now = ctx.currentTime;
-        [[880, 0], [1174.66, 0.1]].forEach(([freq, delay]) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.0001, now + delay);
-          gain.gain.exponentialRampToValueAtTime(0.22, now + delay + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + delay);
-          osc.stop(now + delay + 0.4);
-        });
-        setTimeout(() => ctx.close(), 900);
-      } catch(e) {}
+      playSoundPreset(getSoundType());
+      try { if (navigator.vibrate && document.visibilityState === 'visible') navigator.vibrate(40); } catch (e) {}
+    }
+    function updateSoundTypeUI() {
+      const el = document.getElementById('settingsSoundTypeState');
+      if (el) el.innerText = SOUND_PRESETS[getSoundType()].name;
+    }
+    function openSoundModal() {
+      const grid = document.getElementById('soundGrid');
+      const cur = getSoundType();
+      grid.innerHTML = Object.keys(SOUND_PRESETS).map(k => {
+        const p = SOUND_PRESETS[k];
+        return '<div class="theme-card ' + (k === cur ? 'active' : '') + '" onclick="chooseSound(\'' + k + '\')">'
+          + '<div class="theme-glyph">' + p.glyph + '</div>'
+          + '<div class="theme-card-info"><h5>' + p.name + '</h5><p>' + p.desc + '</p></div></div>';
+      }).join('');
+      document.getElementById('soundModal').classList.add('active');
+    }
+    function closeSoundModal() { document.getElementById('soundModal').classList.remove('active'); }
+    function chooseSound(k) {
+      if (!SOUND_PRESETS[k]) return;
+      localStorage.setItem('notif_sound_type', k);
+      playSoundPreset(k); // 고르면 바로 들려준다 (알림음이 꺼져 있어도 미리듣기는 재생)
+      document.querySelectorAll('#soundGrid .theme-card').forEach((el, i) => el.classList.toggle('active', Object.keys(SOUND_PRESETS)[i] === k));
+      updateSoundTypeUI();
+      if (!isNotificationSoundEnabled()) { localStorage.setItem('notif_sound_enabled', '1'); updateNotificationSoundUI(); }
     }
 
     // 초기 실행
