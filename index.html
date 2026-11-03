@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>정수와진하</title>
+  <!-- 잠금: 로그인 토큰이 있는 기기만 내용을 보여준다 (화면이 그려지기 전에 바로 판단해서 깜빡임 없음) -->
+  <script>try { if (localStorage.getItem('auth_token')) document.documentElement.classList.add('unlocked'); } catch (e) {}</script>
   <meta name="theme-color" content="#000000" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
@@ -1198,6 +1200,35 @@ button, a, .tabbar-btn, .sidebar-nav-btn, .mood-tag, .category-btn, .memory-card
 #toastMessage { overflow:hidden; text-overflow:ellipsis; }
 /* 사진 보기 화면에서 [삭제]를 눌렀을 때 확인창이 사진 뒤에 숨어서 안 보이던 문제 (z-index 2000 < 3000) */
 #deleteConfirmModal { z-index:3500; }
+
+/* ---------- 26. 비밀번호 잠금 화면 ---------- */
+.lock-screen {
+  position:fixed; inset:0; z-index:20000; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:var(--bg-primary, #000);
+  background-image:radial-gradient(circle at 25% 20%, rgba(255,55,95,.28), transparent 55%), radial-gradient(circle at 80% 85%, rgba(10,132,255,.18), transparent 50%);
+}
+html.unlocked .lock-screen { display:none; }
+html:not(.unlocked), html:not(.unlocked) body { overflow:hidden; }
+html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; }
+.lock-card { width:100%; max-width:340px; text-align:center; color:var(--text-primary, #fff); }
+.lock-heart { font-size:46px; color:var(--accent-pink, #ff375f); line-height:1; margin-bottom:14px; animation:lockBeat 1.6s ease-in-out infinite; }
+@keyframes lockBeat { 0%,100% { transform:scale(1); } 15% { transform:scale(1.12); } 30% { transform:scale(1); } }
+.lock-title { font-size:24px; font-weight:800; letter-spacing:-.02em; }
+.lock-title .heart { color:var(--accent-pink, #ff375f); }
+.lock-sub { margin-top:6px; font-size:13.5px; color:var(--text-tertiary, #8e8e93); }
+.lock-form { margin-top:26px; display:flex; flex-direction:column; gap:10px; }
+.lock-input {
+  width:100%; padding:15px 18px; border-radius:16px; font-size:16px; font-family:inherit; text-align:center;
+  background:var(--bg-card, #1c1c1e); color:var(--text-primary, #fff); border:1px solid var(--border-card, #333); outline:none;
+}
+.lock-input:focus { border-color:var(--accent-pink, #ff375f); }
+.lock-btn {
+  width:100%; padding:15px; border-radius:16px; border:none; font-size:16px; font-weight:800; font-family:inherit;
+  background:var(--accent-pink, #ff375f); color:#fff; cursor:pointer;
+}
+.lock-btn:disabled { opacity:.6; }
+.lock-error { min-height:20px; font-size:13px; color:var(--accent-pink, #ff375f); font-weight:600; }
+.pw-field { margin-bottom:10px; }
 .apple-toast.clickable::after { content:'›'; margin-left:8px; opacity:.6; font-size:16px; }
 /* 채팅 전송 상태 */
 .chat-sending { font-size:10.5px; color:var(--text-tertiary); opacity:.85; }
@@ -1217,6 +1248,21 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
   </style>
 </head>
 <body>
+
+  <!-- 비밀번호 잠금 화면 -->
+  <div class="lock-screen" id="lockScreen">
+    <div class="lock-card">
+      <div class="lock-heart">♥</div>
+      <div class="lock-title">정수<span class="heart">♥</span>진하</div>
+      <div class="lock-sub">우리 둘만의 공간이에요. 비밀번호를 입력해 주세요.</div>
+      <form class="lock-form" onsubmit="event.preventDefault(); submitLogin();">
+        <input type="text" name="username" value="정수와진하" autocomplete="username" style="display:none;" aria-hidden="true" />
+        <input type="password" id="lockPassword" class="lock-input" placeholder="비밀번호" autocomplete="current-password" />
+        <button type="submit" class="lock-btn" id="lockSubmit">들어가기</button>
+        <div class="lock-error" id="lockError"></div>
+      </form>
+    </div>
+  </div>
 
   <div class="apple-toast" id="appleToast" onclick="onToastClick()" role="status" aria-live="polite">
     <span class="toast-icon" id="toastIcon">🔔</span>
@@ -1503,6 +1549,16 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         </div>
         <div class="nav-settings-item" onclick="openPushHistoryModal()">
           <span>🕘 알림 내역</span>
+        </div>
+      </div>
+
+      <div class="settings-group-label">보안</div>
+      <div class="settings-group">
+        <div class="nav-settings-item" onclick="openPasswordModal()">
+          <span>🔑 비밀번호 변경</span>
+        </div>
+        <div class="nav-settings-item" onclick="lockThisDevice()">
+          <span>🔒 이 기기 잠그기</span>
         </div>
       </div>
 
@@ -1847,6 +1903,25 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     </div>
   </div>
 
+  <!-- 비밀번호 변경 -->
+  <div class="modal-overlay" id="passwordModal" onclick="closePasswordModal()">
+    <div class="apple-modal" onclick="event.stopPropagation()">
+      <h3 class="modal-title">🔑 비밀번호 변경</h3>
+      <p class="modal-desc">바꾸면 다른 폰은 자동으로 잠겨요. 새 비밀번호를 상대에게도 알려주세요.</p>
+      <form onsubmit="event.preventDefault(); submitPasswordChange();">
+        <input type="text" name="username" value="정수와진하" autocomplete="username" style="display:none;" aria-hidden="true" />
+        <input type="password" id="pwCurrent" class="memory-input-control pw-field" placeholder="지금 비밀번호" autocomplete="current-password" />
+        <input type="password" id="pwNew" class="memory-input-control pw-field" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password" />
+        <input type="password" id="pwNew2" class="memory-input-control pw-field" placeholder="새 비밀번호 한 번 더" autocomplete="new-password" />
+        <div class="lock-error" id="pwError" style="text-align:center;"></div>
+        <div class="modal-buttons">
+          <button type="button" class="btn-modal-cancel" onclick="closePasswordModal()">취소</button>
+          <button type="submit" class="btn-modal-save" id="pwSubmit">변경하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <footer class="apple-footer">
     <p>Designed with Love by <strong>정수 & 진하</strong>.</p>
     <p>Copyright © 2026 정수와진하. All rights reserved.</p>
@@ -1860,6 +1935,137 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     // 이 값은 code.gs의 APP_SECRET과 반드시 동일해야 한다. 둘 다 페이지 소스에 노출되므로
     // "완전한 보안"이 아니라 자동화된 무차별 요청을 걸러내는 최소한의 장치일 뿐이다.
     const APP_SECRET = "534ddb4079aca1fe449d00f0f43c71a2";
+
+    // ------------------------------------------------------------------
+    // 비밀번호 잠금 (v10)
+    // 서버는 로그인 토큰 없이는 어떤 데이터도 보여주지 않는다. 토큰은 이 기기에만 저장되고 180일 동안 유효.
+    // 서버 요청은 전부 gasFetch()를 거치며, 여기서 토큰을 실어 보내고 "로그인 필요" 응답이 오면 잠금 화면을 띄운다.
+    // ------------------------------------------------------------------
+    const AUTH_TOKEN_KEY = 'auth_token';
+    let AUTH_TOKEN = localStorage.getItem(AUTH_TOKEN_KEY) || '';
+    function isLoggedIn() { return !!AUTH_TOKEN; }
+    function setAuthToken(t) {
+      AUTH_TOKEN = t || '';
+      if (AUTH_TOKEN) localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN); else localStorage.removeItem(AUTH_TOKEN_KEY);
+      document.documentElement.classList.toggle('unlocked', !!AUTH_TOKEN);
+    }
+    async function gasFetch(url, opts) {
+      opts = opts ? Object.assign({}, opts) : {};
+      const isPost = (opts.method || 'GET').toUpperCase() === 'POST';
+      if (isPost) {
+        try {
+          const body = JSON.parse(opts.body || '{}');
+          if (AUTH_TOKEN && body.action !== 'login') body.token = AUTH_TOKEN;
+          opts.body = JSON.stringify(body);
+        } catch (e) {}
+      } else if (AUTH_TOKEN) {
+        url += (url.indexOf('?') > -1 ? '&' : '?') + 't=' + encodeURIComponent(AUTH_TOKEN);
+      }
+      const sentToken = AUTH_TOKEN;
+      const res = await fetch(url, opts);
+      // "로그인 필요" 응답이면 (토큰 만료/비밀번호 변경됨) 잠금 화면으로
+      res.clone().json().then(j => {
+        if (j && j.code === 'auth_required' && AUTH_TOKEN === sentToken) {
+          setAuthToken('');
+          showLockScreen(sentToken ? '다시 들어와 주세요. (비밀번호가 바뀌었거나 로그인이 만료됐어요)' : '');
+        }
+      }).catch(() => {});
+      return res;
+    }
+
+    function showLockScreen(msg) {
+      const el = document.getElementById('lockScreen');
+      if (!el) return;
+      document.documentElement.classList.remove('unlocked');
+      const err = document.getElementById('lockError');
+      if (err) err.innerText = msg || '';
+      setTimeout(() => { const i = document.getElementById('lockPassword'); if (i) i.focus(); }, 50);
+    }
+
+    let __loggingIn = false;
+    async function submitLogin() {
+      if (__loggingIn) return;
+      const input = document.getElementById('lockPassword');
+      const btn = document.getElementById('lockSubmit');
+      const err = document.getElementById('lockError');
+      const pw = input.value;
+      if (!pw) { err.innerText = '비밀번호를 입력해 주세요.'; return; }
+      __loggingIn = true;
+      btn.disabled = true; btn.innerText = '확인 중...'; err.innerText = '';
+      try {
+        const res = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'login', password: pw })
+        });
+        const j = await res.json();
+        if (j && j.status === 'success' && j.token) {
+          input.value = '';
+          setAuthToken(j.token);
+          onUnlocked();
+        } else {
+          err.innerText = (j && j.message) || '로그인에 실패했어요.';
+          input.select();
+        }
+      } catch (e) {
+        err.innerText = '연결에 실패했어요. 인터넷을 확인해 주세요.';
+      } finally {
+        __loggingIn = false;
+        btn.disabled = false; btn.innerText = '들어가기';
+      }
+    }
+
+    // 잠금이 풀리면: 최신 데이터 받기 + 못 보낸 저장 마저 보내기 + 푸시 등록 갱신
+    function onUnlocked() {
+      lastLocalActionTime = 0;
+      __syncRetryCount = 0;
+      if (__syncQueue.length > 0) drainSyncQueue();
+      loadFromCloudSilently(true).finally(() => schedulePoll());
+      ensurePushRegistration(true).catch(() => {});
+      showToast('어서와요 💕', '🔓', 1800);
+      if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 700); // 처음 쓰는 기기면 누구 폰인지 고르기
+    }
+
+    function lockThisDevice() {
+      if (!confirm('이 기기를 잠글까요? 다시 들어오려면 비밀번호가 필요해요.')) return;
+      setAuthToken('');
+      showLockScreen('');
+    }
+
+    function openPasswordModal() {
+      ['pwCurrent', 'pwNew', 'pwNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('pwError').innerText = '';
+      document.getElementById('passwordModal').classList.add('active');
+    }
+    function closePasswordModal() {
+      document.getElementById('passwordModal').classList.remove('active');
+    }
+    async function submitPasswordChange() {
+      const cur = document.getElementById('pwCurrent').value;
+      const n1 = document.getElementById('pwNew').value;
+      const n2 = document.getElementById('pwNew2').value;
+      const err = document.getElementById('pwError');
+      const btn = document.getElementById('pwSubmit');
+      if (!cur || !n1) { err.innerText = '빈 칸을 채워 주세요.'; return; }
+      if (n1.length < 4) { err.innerText = '새 비밀번호는 4자 이상으로 해 주세요.'; return; }
+      if (n1 !== n2) { err.innerText = '새 비밀번호가 서로 달라요.'; return; }
+      btn.disabled = true; err.innerText = '';
+      try {
+        const res = await gasFetch(GAS_WEB_APP_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'change_password', currentPassword: cur, newPassword: n1 })
+        });
+        const j = await res.json();
+        if (j && j.status === 'success' && j.token) {
+          setAuthToken(j.token);
+          closePasswordModal();
+          showToast('비밀번호를 바꿨어요. 다른 폰은 새 비밀번호로 다시 들어가야 해요.', '🔑', 5000);
+        } else {
+          err.innerText = (j && j.message) || '변경에 실패했어요.';
+        }
+      } catch (e) {
+        err.innerText = '연결에 실패했어요.';
+      } finally { btn.disabled = false; }
+    }
 
     // ------------------------------------------------------------------
     // 진짜 웹 푸시 알림 (Firebase Cloud Messaging)
@@ -2132,7 +2338,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         const token = localStorage.getItem('fcm_token');
         if (token) {
           try {
-            await fetch(GAS_WEB_APP_URL, {
+            await gasFetch(GAS_WEB_APP_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({ action: 'unregister_push_token', token: token, secret: APP_SECRET })
@@ -2165,7 +2371,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           showToast('알림 등록에 실패했어요.', '⚠️');
           return;
         }
-        await fetch(GAS_WEB_APP_URL, {
+        await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'register_push_token', token: token, sender: currentSender, secret: APP_SECRET })
@@ -2423,6 +2629,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
     async function drainSyncQueue(useKeepalive = false) {
       if (!GAS_WEB_APP_URL) return;
+      if (!isLoggedIn()) { setSyncStatus('error', '잠김 · 들어가면 저장'); return; } // 로그인하면 onUnlocked()가 마저 보냄
       if (__syncInflight) return __syncInflight;
       clearTimeout(__syncRetryTimer); __syncRetryTimer = null;
       __syncInflight = (async () => {
@@ -2438,7 +2645,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           const sentChatIds = ((payload.appState && payload.appState.chatMessages) || []).map(m => m.id);
           const body = JSON.stringify(payload);
           try {
-            const res = await fetch(GAS_WEB_APP_URL, {
+            const res = await gasFetch(GAS_WEB_APP_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body,
@@ -2549,6 +2756,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     let __loadInflight = null;
     async function loadFromCloudSilently(force = false) {
       if (!GAS_WEB_APP_URL) return;
+      if (!isLoggedIn()) return; // 잠금 상태에서는 서버에 묻지 않는다
       if (__loadInflight) return __loadInflight; // 이미 받아오는 중이면 같은 요청을 기다린다 (중복 요청 방지)
 
       if (!force && !isInitialLoad) {
@@ -2565,7 +2773,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         try {
           // ⚠️ 캐시 버스팅 필수: Apps Script의 exec 주소는 매번 새로운 임시 주소(user_content_key)로
           // 리다이렉트되는데, 같은 주소만 반복하면 브라우저가 리다이렉트를 캐시해서 만료된 주소로 가는 경우가 있다.
-          const res = await fetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
+          const res = await gasFetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
           const json = await res.json();
           if (!(json && json.status === "success" && json.data)) {
             console.warn('[loadFromCloudSilently] 서버 응답 이상:', json);
@@ -2828,7 +3036,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         openPhotoAdjustModal();
 
         setSyncStatus("syncing", "드라이브에 대표 사진 저장 중...");
-        await fetch(GAS_WEB_APP_URL, {
+        await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
@@ -3182,7 +3390,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const { folderId, title, date, indexOffset = 0, total, onEach } = opts;
       const results = new Array(prepared.length).fill(null);
       let done = 0;
-      const postOnce = (i) => fetch(GAS_WEB_APP_URL, {
+      const postOnce = (i) => gasFetch(GAS_WEB_APP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
@@ -3274,7 +3482,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           renderMemories();
 
           registerLocalAction();
-          const prepRes = await fetch(GAS_WEB_APP_URL, {
+          const prepRes = await gasFetch(GAS_WEB_APP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
@@ -3436,7 +3644,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
           // 3. 구글 드라이브 폴더 이름/메타데이터만 갱신 (사진·동영상 파일은 그대로 둠)
           updateUploadProgress(20, `드라이브 폴더 갱신 중...`);
-          const prepRes = await fetch(GAS_WEB_APP_URL, {
+          const prepRes = await gasFetch(GAS_WEB_APP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
@@ -3466,7 +3674,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           // 4. 사용자가 ✕로 지운 기존 파일만 삭제
           if (removedFileIds.length > 0) {
             updateUploadProgress(30, `삭제된 파일 정리 중...`);
-            await fetch(GAS_WEB_APP_URL, {
+            await gasFetch(GAS_WEB_APP_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({ action: "delete_media_files", fileIds: removedFileIds, secret: APP_SECRET })
@@ -3534,7 +3742,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       showToast('추억 앨범이 삭제되었습니다.', '🗑');
 
       try {
-        await fetch(GAS_WEB_APP_URL, {
+        await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
@@ -3783,6 +3991,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       dateModal: () => closeDateModal(),
       pushHistoryModal: () => closePushHistoryModal(),
       identityModal: () => closeIdentityModal(),
+      passwordModal: () => closePasswordModal(),
     };
 
     document.addEventListener('keydown', (e) => {
@@ -4015,6 +4224,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     async function ensurePushRegistration(forceRegister) {
       if (localStorage.getItem('push_enabled') !== '1') return;
       if (!isPushConfigured() || !GAS_WEB_APP_URL) return;
+      if (!isLoggedIn()) return;
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
       try {
@@ -4032,10 +4242,10 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         if (forceRegister || token !== stored || storedSender !== currentSender) {
           if (stored && stored !== token) {
             // 예전 토큰은 서버에서 지워서 죽은 토큰으로 보내는 일이 없게
-            fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            gasFetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({ action: 'unregister_push_token', token: stored, secret: APP_SECRET }) }).catch(() => {});
           }
-          await fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          await gasFetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ action: 'register_push_token', token: token, sender: currentSender, secret: APP_SECRET }) });
           localStorage.setItem('fcm_token', token);
           localStorage.setItem('fcm_token_sender', currentSender);
@@ -4383,7 +4593,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     renderMemories();
     setTimeout(probeDriveMedia, 1500); // 동영상 기본 플레이어 사용 가능 여부를 미리 확인
     renderIdentityUI(); // 기기에 저장된 "이 기기의 주인"을 화면에 반영
-    if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 600); // 처음 쓰는 기기면 먼저 누구 폰인지 고르게
+    if (!hasChosenIdentity() && isLoggedIn()) setTimeout(() => openIdentityModal(true), 600); // 처음 쓰는 기기면 먼저 누구 폰인지 고르게
     // 토큰이 바뀌었거나 주인이 바뀌었으면 서버 등록 갱신 — 첫 화면을 다 그린 뒤에 (알림을 켠 기기만 SDK를 받는다)
     setTimeout(() => ensurePushRegistration(false).catch(() => {}), 2000);
     loadChatMessages();
@@ -4393,6 +4603,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     updateSettingsBadge();
     updateNotificationSoundUI();
 
+    if (!isLoggedIn()) showLockScreen('');
     handleIncomingPushLink(); // 알림을 눌러서 들어온 경우 해당 항목으로 이동 (내부에서 첫 동기화를 기다린다)
     loadFromCloudSilently().finally(() => schedulePoll());
   </script>
