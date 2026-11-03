@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032303" />
+  <meta name="jj-version" content="202611032306" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1907,6 +1907,30 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
 @media (display-mode: standalone) and (max-width:1023px) {
   nav.apple-nav { padding-top:calc(12px + env(safe-area-inset-top,0px)) !important; }
 }
+
+/* =========================================================================
+   36. 윈도우 98 테마: 함께한 시간 시계 (같은 크기 칸 3개 + 칸 밖의 콜론 + 슬라이드 숫자)
+   ========================================================================= */
+[data-theme="win98"] .dday-container {
+  display:inline-flex !important; align-items:center; gap:14px; padding:0 !important; margin-top:10px;
+  background:none !important; box-shadow:none !important; border:none !important;
+}
+[data-theme="win98"] .dday-container > .dday-card {
+  position:relative; display:flex !important; align-items:center; justify-content:center; gap:0 !important;
+  width:44px; height:30px; padding:0 !important; flex-shrink:0;
+  background:#fff !important; box-shadow:var(--w98-sunken) !important;
+}
+[data-theme="win98"] .dday-card + .dday-card::before {
+  content:":" !important; position:absolute; left:-12px; top:0; bottom:0; width:10px; margin:0 !important;
+  display:flex; align-items:center; justify-content:center; color:#000 !important; font-weight:700; font-size:15px;
+}
+[data-theme="win98"] .dday-card .dday-num { font-size:17px !important; line-height:1; font-weight:700; letter-spacing:0; font-variant-numeric:tabular-nums; display:inline-flex; }
+[data-theme="win98"] .dday-card:last-child .dday-num { color:#800000 !important; -webkit-text-fill-color:#800000 !important; }
+.sd-cell { display:inline-block; height:1.15em; line-height:1.15em; overflow:hidden; vertical-align:middle; text-align:center; min-width:.62em; }
+.sd-roll { display:flex; flex-direction:column; }
+.sd-roll > span { display:block; height:1.15em; line-height:1.15em; }
+.sd-roll.go { animation:sdSlide .38s cubic-bezier(.3,.7,.3,1) forwards; }
+@keyframes sdSlide { from { transform:translateY(0); } to { transform:translateY(-50%); } }
   </style>
 </head>
 <body>
@@ -4140,6 +4164,26 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     }
 
     let __timerDayKey = '';
+    // 윈도우 98 테마: 숫자가 바뀔 때 위로 밀려 올라가는 "슬라이드 시계" (다른 테마는 그냥 글자만 바꾼다)
+    function setClockText(el, str) {
+      if (!el) return;
+      if (document.documentElement.getAttribute('data-theme') !== 'win98') {
+        el.__sd = null;
+        if (el.textContent !== str) el.textContent = str;
+        return;
+      }
+      if (!el.__sd || el.__sd.length !== str.length || el.children.length !== str.length) {
+        el.innerHTML = str.split('').map(c => '<span class="sd-cell"><span class="sd-roll"><span>' + c + '</span></span></span>').join('');
+        el.__sd = str;
+        return;
+      }
+      const old = el.__sd;
+      for (let i = 0; i < str.length; i++) {
+        if (old[i] === str[i]) continue;
+        el.children[i].innerHTML = '<span class="sd-roll go"><span>' + old[i] + '</span><span>' + str[i] + '</span></span>';
+      }
+      el.__sd = str;
+    }
     function updateTimer() {
       if (document.visibilityState === 'hidden') return; // 안 보이는 동안은 1초마다 화면을 고칠 필요가 없다
       const today = new Date();
@@ -4162,9 +4206,9 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
 
       document.getElementById("navSettingsDDay").innerText = `D+${days}`;
       document.getElementById("ddayDays").innerText = days > 0 ? days : 0;
-      document.getElementById("ddayHours").innerText = String(hours >= 0 ? hours : 0).padStart(2, '0');
-      document.getElementById("ddayMins").innerText = String(mins >= 0 ? mins : 0).padStart(2, '0');
-      document.getElementById("ddaySecs").innerText = String(secs >= 0 ? secs : 0).padStart(2, '0');
+      setClockText(document.getElementById("ddayHours"), String(hours >= 0 ? hours : 0).padStart(2, '0'));
+      setClockText(document.getElementById("ddayMins"), String(mins >= 0 ? mins : 0).padStart(2, '0'));
+      setClockText(document.getElementById("ddaySecs"), String(secs >= 0 ? secs : 0).padStart(2, '0'));
     }
 
     function renderAnniversaries() {
