@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032211" />
+  <meta name="jj-version" content="202611032234" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1322,6 +1322,8 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 .pw-field { margin-bottom:10px; }
 .apple-toast.clickable::after { content:'›'; margin-left:8px; opacity:.6; font-size:16px; }
 /* 채팅 전송 상태 */
+.chat-older-wrap { display:flex; justify-content:center; padding:8px 0 4px; }
+.chat-older-btn { background:var(--bg-glass); color:var(--text-secondary); border:none; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
 .chat-sending { font-size:10.5px; color:var(--text-tertiary); opacity:.85; }
 .chat-fail-btn {
   background:none; border:none; padding:0; margin:0; cursor:pointer;
@@ -1756,7 +1758,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         <p class="section-desc">함께한 순간을 모아두는 앨범 · 구글 드라이브 자동 연동</p>
         <div class="memories-top-action">
           <button class="btn-add-memory" onclick="openAddMemoryModal()">＋ 새 추억 등록</button>
-          <a href="https://drive.google.com/drive/folders/1o1zMeO6LnU_BM8CzjFXFD4-nrOFZ0LCL" target="_blank" class="btn-open-drive-main" title="전체 드라이브 폴더 열기">📁</a>
+          <a href="https://drive.google.com/drive/folders/1o1zMeO6LnU_BM8CzjFXFD4-nrOFZ0LCL" target="_blank" id="btnDriveMain" class="btn-open-drive-main" title="전체 드라이브 폴더 열기">📁</a>
         </div>
       </div>
 
@@ -2272,6 +2274,12 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzpQVo3OSQjUQvQlR_uEVsiXWMwNoZjMaFnZO5LZu7_40SRElPb1p1sVfdI5VvM8sOa/exec";
     const PARENT_DRIVE_FOLDER_ID = "1o1zMeO6LnU_BM8CzjFXFD4-nrOFZ0LCL";
     const MAIN_DRIVE_URL = `https://drive.google.com/drive/folders/${PARENT_DRIVE_FOLDER_ID}`;
+    // 📁 버튼은 두 사람 모두 열 수 있는 "추억앨범" 폴더로 (상위 폴더는 채팅 데이터가 있어 비공개라 진하 폰에선 권한 없음이 떴다)
+    function driveAlbumUrl() { return localStorage.getItem('album_url') || MAIN_DRIVE_URL; }
+    function applyAlbumUrl(u) {
+      if (u && u !== localStorage.getItem('album_url')) localStorage.setItem('album_url', u);
+      const a = document.getElementById('btnDriveMain'); if (a) a.href = driveAlbumUrl();
+    }
     const DEFAULT_START_DATE = "2025-09-10";
     // 이 값은 code.gs의 APP_SECRET과 반드시 동일해야 한다. 둘 다 페이지 소스에 노출되므로
     // "완전한 보안"이 아니라 자동화된 무차별 요청을 걸러내는 최소한의 장치일 뿐이다.
@@ -3147,6 +3155,25 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       };
     }
 
+    // ------------------------------------------------------------------
+    // "바뀐 항목만" 저장하기
+    // 예전엔 저장할 때마다 전체 상태를 보내서, 두 사람이 거의 동시에 저장하면(채팅 읽음 표시만으로도 저장이 일어남)
+    // 늦게 도착한 쪽이 상대가 방금 쓴 쪽지·버킷을 지워버렸다. 이제는 마지막으로 서버와 맞춘 상태와 비교해서
+    // 실제로 바뀐 항목만 알려주고, 서버는 그 항목만(쪽지·버킷·문답은 항목 단위로) 합친다.
+    // ------------------------------------------------------------------
+    const SYNC_LOCAL_ONLY = { theme: 1, mainPhoto: 1 }; // 기기별 설정 / 서버(드라이브)가 관리하는 값
+    let __lastSynced = null;
+    const __deletedNotes = new Set();
+    const __deletedBuckets = new Set();
+    function persistSynced() { try { localStorage.setItem('jj_last_synced', JSON.stringify(__lastSynced)); } catch (e) {} }
+    function snapshotSynced() { try { __lastSynced = JSON.parse(JSON.stringify(getFullAppState())); persistSynced(); } catch (e) {} }
+    // 앱을 닫기 직전에 못 보낸 변경이 있으면 다음에 열 때 찾아서 보낼 수 있도록 기준점을 저장해 둔다
+    function loadSyncedBaseline() { try { const v = JSON.parse(localStorage.getItem('jj_last_synced') || 'null'); if (v && typeof v === 'object') { __lastSynced = v; return true; } } catch (e) {} return false; }
+    function changedStateKeys(full) {
+      if (!__lastSynced) return Object.keys(full).filter(k => !SYNC_LOCAL_ONLY[k]);
+      return Object.keys(full).filter(k => !SYNC_LOCAL_ONLY[k] && JSON.stringify(full[k]) !== JSON.stringify(__lastSynced[k]));
+    }
+
     function getAllQnAAnswers() {
       const obj = {};
       // 예전엔 0~9번까지만 저장했다 → 질문 수만큼 전부 저장
@@ -3211,10 +3238,19 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           req.sending = true;
           const payload = req.immediatePayload ? Object.assign({}, req.immediatePayload) : {};
           if (!payload.appState) payload.appState = getFullAppState();
+          const sentKeys = changedStateKeys(payload.appState);
+          payload.changedKeys = sentKeys;
+          const sentDeletedNotes = Array.from(__deletedNotes), sentDeletedBuckets = Array.from(__deletedBuckets);
+          if (sentDeletedNotes.length) payload.notesDeleted = sentDeletedNotes;
+          if (sentDeletedBuckets.length) payload.bucketsDeleted = sentDeletedBuckets;
           payload.secret = APP_SECRET;
           payload.actor = currentSender; // 이 행동을 한 사람 — 백엔드가 "본인 기기엔 알림 안 보내기"에 사용
           if (req.notifyType) payload.notifyType = req.notifyType;
           if (req.extraFields) Object.assign(payload, req.extraFields);
+          const fullForBaseline = payload.appState;
+          if (Array.isArray(fullForBaseline.chatMessages) && fullForBaseline.chatMessages.length > 300) {
+            payload.appState = Object.assign({}, fullForBaseline, { chatMessages: fullForBaseline.chatMessages.slice(-300) });
+          }
           const sentChatIds = ((payload.appState && payload.appState.chatMessages) || []).map(m => m.id);
           const body = JSON.stringify(payload);
           try {
@@ -3229,6 +3265,9 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
             if (!json || json.status !== 'success') throw new Error((json && json.message) || '서버 오류');
             __syncQueue.shift();
             __syncRetryCount = 0;
+            if (__lastSynced) { sentKeys.forEach(k => { __lastSynced[k] = JSON.parse(JSON.stringify(fullForBaseline[k])); }); persistSynced(); }
+            sentDeletedNotes.forEach(id => __deletedNotes.delete(id));
+            sentDeletedBuckets.forEach(t => __deletedBuckets.delete(t));
             sentChatIds.forEach(id => { __pendingChatIds.delete(id); __failedChatIds.delete(id); });
           } catch (e) {
             req.sending = false;
@@ -3311,12 +3350,17 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     // 채팅 합치기: 서버 목록을 기본으로 하되, 서버에 아직 없는 "내가 최근에 보낸" 메시지는 버리지 않는다.
     // (두 사람이 거의 동시에 저장하면 한쪽 저장이 다른 쪽 메시지를 덮어쓸 수 있는데, 그때 사라진 내 메시지를 되살려 다시 저장)
     const __chatResyncTries = {};
-    function mergeCloudChat(cloudList) {
+    function mergeCloudChat(cloudList, truncated) {
       if (!Array.isArray(cloudList) || cloudList.length === 0) return { merged: cloudList || [], extras: [] };
       const cloudIds = new Set(cloudList.map(m => m && m.id));
       const cutoff = Date.now() - 3 * 86400000;
       let oldestCloud = Infinity;
       cloudList.forEach(m => { if (m && (m.time || 0) < oldestCloud) oldestCloud = m.time || 0; });
+      if (truncated) {
+        // 서버는 최근 메시지만 보냈다 → 그보다 예전 것은 이 기기에 있던 그대로 둔다
+        const olderLocal = chatMessages.filter(m => m && m.id && !cloudIds.has(m.id) && (m.time || 0) < oldestCloud);
+        if (olderLocal.length) cloudList = olderLocal.concat(cloudList);
+      }
       const extras = chatMessages.filter(m => m && m.id && !cloudIds.has(m.id) && m.sender === currentSender &&
         (m.time || 0) > cutoff && (m.time || 0) >= oldestCloud && (__chatResyncTries[m.id] || 0) < 3);
       if (extras.length === 0) return { merged: cloudList, extras };
@@ -3406,6 +3450,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
 
           if (cloud.mainPhoto && changed("couple_main_photo", cloud.mainPhoto)) { loadPhoto(); if (typeof syncSettingsPhoto === 'function') syncSettingsPhoto(); }
 
+          if (cloud.albumUrl) applyAlbumUrl(cloud.albumUrl);
           if (cloud.memories && Array.isArray(cloud.memories)) {
             cloud.memories.forEach(item => { item.category = normalizeCategory(item.category); });
             const nextMem = JSON.stringify(cloud.memories);
@@ -3421,9 +3466,11 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           let chatChanged = false;
           let chatExtras = [];
           if (cloud.chatMessages) {
-            const m = mergeCloudChat(cloud.chatMessages);
+            const m = mergeCloudChat(cloud.chatMessages, !!cloud.chatTruncated);
+            if (typeof cloud.chatTotal === 'number') __chatTotal = cloud.chatTotal;
             chatExtras = m.extras;
-            if (changed("couple_chat", m.merged)) { loadChatMessages(); chatChanged = true; }
+            const nextChat = JSON.stringify(m.merged);
+            if (changed("couple_chat", m.merged) || nextChat !== JSON.stringify(chatMessages)) { localStorage.setItem("couple_chat", nextChat); loadChatMessages(); chatChanged = true; }
           }
           if (cloud.chatReadReceipts && changed("couple_chat_read", cloud.chatReadReceipts)) {
             // 백엔드가 이미 기존 값과 병합(더 늦은 시각으로만 갱신)해서 보내주므로 그대로 덮어써도 안전하다
@@ -3458,6 +3505,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           if (cloud.anniversary && changed("couple_anniversary_date", cloud.anniversary)) { updateTimer(); renderAnniversaries(); if (typeof updateHeroMeta === 'function') updateHeroMeta(); }
 
           isInitialLoad = false;
+          if (!hasPendingSync()) snapshotSynced(); // 지금 화면 = 서버와 맞춘 상태
           if (!hasPendingSync()) setSyncStatus("synced", "동기화됨");
         } catch(e) {
           console.error('[loadFromCloudSilently] 동기화 실패:', e);
@@ -3469,6 +3517,21 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         if (__refreshAfterSync && !hasPendingSync()) { __refreshAfterSync = false; setTimeout(() => loadFromCloudSilently(false, true), 0); }
       }
     }
+
+    // 같은 브라우저의 다른 탭에서 저장공간이 바뀌면 이 탭 화면도 맞춘다
+    window.addEventListener('storage', (e) => {
+      if (!e.key) return;
+      try {
+        if (e.key === 'couple_chat') { loadChatMessages(); renderChatMessages(); }
+        else if (e.key === 'couple_chat_read') { loadChatReadReceipts(); renderChatMessages(); }
+        else if (e.key === 'couple_notes') loadNotes();
+        else if (e.key === 'couple_buckets') renderBuckets();
+        else if (e.key === 'couple_mood') loadMood();
+        else if (e.key.indexOf('qna_') === 0) { const qi = parseInt(localStorage.getItem('qna_index') || '0', 10); if (!isNaN(qi) && qi >= 0 && qi < QUESTIONS.length) currentQIndex = qi; renderQnA(); }
+        else if (e.key === 'couple_anniversary_date') { updateTimer(); renderAnniversaries(); if (typeof updateHeroMeta === 'function') updateHeroMeta(); }
+        else if (e.key === 'couple_main_photo' || e.key === 'couple_photo_settings') loadPhoto();
+      } catch (err) {}
+    });
 
     // ⚡ 새로고침 주기 관리 (예전: 15초 타이머 + 채팅 5초 타이머가 동시에 돌고, 화면이 꺼져 있어도 계속 요청)
     // 지금: 타이머 하나만 쓰고, 채팅 탭이면 5초 / 그 외 15초, 앱이 백그라운드면 완전히 멈췄다가
@@ -3638,13 +3701,12 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           body: JSON.stringify({
             action: "upload_main_photo",
             base64: compressed,
-            appState: getFullAppState(),
             actor: currentSender,
             secret: APP_SECRET
           })
         });
 
-        setSyncStatus("synced", "동기화됨");
+        syncToCloud(); // 사진 위치(확대·이동) 초기값도 같이 저장
         showToast('대표 사진이 구글 드라이브에 영구 저장되었습니다!', '✨');
       } catch (err) {
         console.error('[handleNewPhotoSelected] 대표 사진 저장 실패:', err);
@@ -3901,7 +3963,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         const cover = media.length > 0 ? media[0] : null;
         const coverImg = cover ? fastImg(cover.thumbUrl || cover.url) : '';
         const count = media.length;
-        const folderUrl = item.folderUrl || MAIN_DRIVE_URL;
+        const folderUrl = item.folderUrl || driveAlbumUrl();
 
         return `
           <div class="memory-card" onclick="openLightbox('${item.id}')">
@@ -4067,7 +4129,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           date: formattedDate,
           desc: finalDesc,
           media: [],
-          folderUrl: MAIN_DRIVE_URL
+          folderUrl: driveAlbumUrl()
         };
 
         try {
@@ -4104,7 +4166,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           folderCreated = true;
 
           const targetFolderId = prepJson.folderId;
-          newItem.folderUrl = prepJson.folderUrl || MAIN_DRIVE_URL;
+          newItem.folderUrl = prepJson.folderUrl || driveAlbumUrl();
           newItem.id = "drive-" + targetFolderId;
 
           updateUploadProgress(20, `드라이브 저장 중 20% (0/${totalFiles})`);
@@ -4352,7 +4414,6 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
             action: "delete_memory",
             id: id,
             title: targetTitle,
-            appState: getFullAppState(),
             actor: currentSender,
             secret: APP_SECRET
           })
@@ -4383,7 +4444,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       document.getElementById('lightboxCategory').innerText = getCategoryName(item.category);
 
       const driveLink = document.getElementById('lightboxDriveLink');
-      driveLink.href = item.folderUrl || MAIN_DRIVE_URL;
+      driveLink.href = item.folderUrl || driveAlbumUrl();
       driveLink.style.display = 'inline-flex';
 
       updateSliderView();
@@ -4777,7 +4838,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       pushHistoryModal: () => closePushHistoryModal(),
       identityModal: () => closeIdentityModal(),
       passwordModal: () => closePasswordModal(),
-      photoZoomViewer: () => closePhotoZoom(),
+      photoZoomViewer: () => { if (typeof window.closePhotoZoom === 'function') window.closePhotoZoom(); },
       soundModal: () => closeSoundModal(),
     };
 
@@ -4946,6 +5007,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       if (!confirm(`"${list0[index].text}" 항목을 삭제할까요?`)) return; // 실수로 ✕를 눌러 지워지는 일 방지
       registerLocalAction();
       const list = getBuckets();
+      if (list[index]) __deletedBuckets.add(list[index].text);
       list.splice(index, 1);
       saveBuckets(list);
     }
@@ -5149,6 +5211,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       if (!confirm('이 쪽지를 삭제할까요?')) return;
       registerLocalAction();
       let saved = JSON.parse(localStorage.getItem('couple_notes') || '[]');
+      __deletedNotes.add(id);
       saved = saved.filter(n => n.id !== id);
       localStorage.setItem('couple_notes', JSON.stringify(saved));
       if (editingNoteId === id) cancelEditNote();
@@ -5178,13 +5241,42 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     }
 
     let __chatRenderSig = '';
-    function renderChatMessages(force) {
+    let __chatRenderLimit = 300;
+    let __chatTotal = 0;
+    let __loadingOlderChat = false;
+    // 예전 대화 더 보기: 이 기기에 있으면 바로 더 그리고, 없으면 서버에서 받아온다 (스크롤 위치 유지)
+    async function showOlderChat() {
+      if (__loadingOlderChat) return;
+      const container = document.getElementById('chatMessagesList');
+      const prevHeight = container.scrollHeight, prevTop = container.scrollTop;
+      if (chatMessages.length > __chatRenderLimit) {
+        __chatRenderLimit += 300;
+      } else {
+        __loadingOlderChat = true;
+        try {
+          const oldest = chatMessages.length ? (chatMessages[0].time || 0) : Date.now();
+          const res = await gasFetch(GAS_WEB_APP_URL + '/chat-before?before=' + oldest + '&limit=500&_=' + Date.now(), { cache: 'no-store' });
+          const j = await res.json();
+          if (j && j.status === 'success' && Array.isArray(j.messages) && j.messages.length) {
+            const ids = new Set(chatMessages.map(m => m.id));
+            const add = j.messages.filter(m => m && m.id && !ids.has(m.id));
+            chatMessages = add.concat(chatMessages).sort((a, b) => (a.time || 0) - (b.time || 0));
+            localStorage.setItem('couple_chat', JSON.stringify(chatMessages));
+            __chatRenderLimit += add.length;
+          } else { __chatTotal = chatMessages.length; }
+        } catch (e) { showToast('예전 대화를 불러오지 못했어요.', '⚠️'); }
+        __loadingOlderChat = false;
+      }
+      renderChatMessages(true, true);
+      container.scrollTop = container.scrollHeight - prevHeight + prevTop;
+    }
+    function renderChatMessages(force, keepScroll) {
       const container = document.getElementById('chatMessagesList');
       if (!container) return;
       // ⚡ 같은 내용이면 다시 그리지 않는다 (탭 전환·주기 동기화 때 불필요한 재렌더 제거)
       updateChatUnreadBadge();
       const last = chatMessages[chatMessages.length - 1];
-      const sig = currentSender + '|' + chatMessages.length + '|' + (last ? last.id + ':' + (last.text || '').length : '') + '|' + JSON.stringify(chatReadReceipts) + '|' + (document.documentElement.getAttribute('data-chat') || '') + '|' + __pendingChatIds.size + '/' + __failedChatIds.size;
+      const sig = currentSender + '|' + __chatRenderLimit + '|' + chatMessages.length + '|' + (last ? last.id + ':' + (last.text || '').length : '') + '|' + JSON.stringify(chatReadReceipts) + '|' + (document.documentElement.getAttribute('data-chat') || '') + '|' + __pendingChatIds.size + '/' + __failedChatIds.size;
       if (!force && sig === __chatRenderSig && container.childElementCount > 0) { if (isChatViewActive()) scrollChatToBottom(); return; }
       // 위로 올려서 예전 대화를 보고 있는 중이면 새 메시지가 와도 맨 아래로 끌어내리지 않는다
       const wasNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 120;
@@ -5198,7 +5290,13 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       const prevCount = container.querySelectorAll('.chat-bubble-row').length;
       let html = '';
       let lastDayKey = '';
-      chatMessages.forEach((msg, i) => {
+      // ⚡ 메시지가 아주 많아져도 버벅이지 않게 최근 것만 그린다
+      const start = Math.max(0, chatMessages.length - __chatRenderLimit);
+      const visible = start > 0 ? chatMessages.slice(start) : chatMessages;
+      if (start > 0 || __chatTotal > chatMessages.length) {
+        html += '<div class="chat-older-wrap"><button type="button" class="chat-older-btn" onclick="showOlderChat()">이전 대화 더 보기</button></div>';
+      }
+      visible.forEach((msg, i) => {
         const isMe = msg.sender === currentSender; // "나"는 위치(오른쪽)만 결정하고, 색상은 발신자로 고정된다
         const senderColorClass = msg.sender === 'Him' ? 'sender-him' : 'sender-her';
         const d = new Date(msg.time || 0);
@@ -5209,7 +5307,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           lastDayKey = dayKey;
         }
         // 같은 사람이 같은 '분'에 연달아 보낸 메시지는 마지막 것에만 시간을 표시한다
-        const next = chatMessages[i + 1];
+        const next = visible[i + 1];
         const sameGroupAsNext = next && next.sender === msg.sender && Math.floor((next.time || 0) / 60000) === Math.floor((msg.time || 0) / 60000);
         // 내가 보낸 메시지인데 상대가 아직 이 시각까지 안 읽았으면 "1" 표시
         const showUnread = isMe && (msg.time || 0) > partnerReadAt;
@@ -5231,7 +5329,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         `;
       });
       container.innerHTML = html;
-      if (force || wasNearBottom || lastIsMine || prevCount === 0) scrollChatToBottom();
+      if (!keepScroll && (force || wasNearBottom || lastIsMine || prevCount === 0)) scrollChatToBottom();
     }
 
     // 채팅 탭의 안 읽은 메시지 개수 배지 (다른 탭에 있어도 새 메시지가 온 걸 바로 알 수 있게)
@@ -5474,6 +5572,9 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     if (!isLoggedIn()) showLockScreen('');
     else { if (tokenUser()) applyLoginUser(tokenUser()); updateSecurityUI(); maybeNudgePersonalPassword(); }
     handleIncomingPushLink(); // 알림을 눌러서 들어온 경우 해당 항목으로 이동 (내부에서 첫 동기화를 기다린다)
+    applyAlbumUrl(null);
+    if (!loadSyncedBaseline()) snapshotSynced();
+    else if (changedStateKeys(getFullAppState()).length) syncToCloud(null); // 지난번에 못 보낸 변경 마저 보내기
     loadFromCloudSilently().finally(() => schedulePoll());
     connectRealtime();
 
