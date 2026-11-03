@@ -1,6 +1,7 @@
 // ==============================================================================
 // 정수와진하 - 백그라운드 푸시 알림 서비스워커
 // 사이트를 닫아두거나 폰 화면을 꺼둔 상태에서도 이 파일이 알림을 받아 화면에 띄워준다.
+// (2026-11 추가) 사이트 화면을 폰에 저장해 두어 다음부터 바로 열리게 하는 캐시 역할도 같이 한다.
 // 반드시 index.html과 같은 위치(사이트 루트)에 "firebase-messaging-sw.js" 라는 이름 그대로 올려야 한다.
 // ==============================================================================
 
@@ -88,4 +89,85 @@ self.addEventListener('notificationclick', (event) => {
       if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
+});
+
+
+// ==============================================================================
+// ⚡ 앱 화면 저장(오프라인 캐시) — 두 번째 방문부터 화면이 네트워크를 기다리지 않고 바로 뜬다.
+//  - 사이트 화면(index.html): 저장본을 즉시 보여주고, 뒤에서 최신본을 받아 교체 (바뀌었으면 화면에 "새 버전" 안내)
+//  - 폰트/알림 모듈처럼 주소에 버전이 박힌 파일: 한 번 받으면 계속 저장본 사용
+//  - 서버 데이터(Apps Script)와 사진은 건드리지 않는다 (항상 최신)
+// ==============================================================================
+const SHELL_CACHE = "jj-shell-v1";
+const STATIC_CACHE = "jj-static-v1";
+const SCOPE_URL = new URL("./", self.location).href;
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE)
+      .then((c) => c.addAll(["./", "./manifest.json", "./icon-192.png"]))
+      .catch(() => {})
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keep = [SHELL_CACHE, STATIC_CACHE];
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n.startsWith("jj-") && keep.indexOf(n) === -1).map((n) => caches.delete(n)));
+    await self.clients.claim();
+  })());
+});
+
+async function notifyClientsUpdated() {
+  const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  list.forEach((c) => c.postMessage({ type: "jj-update-available" }));
+}
+
+async function handleNavigation(event) {
+  const cache = await caches.open(SHELL_CACHE);
+  const cached = await cache.match("./");
+  const network = fetch(event.request.url.split("?")[0].split("#")[0], { cache: "no-cache" }).then(async (res) => {
+    if (res && res.ok && res.type === "basic") {
+      const fresh = res.clone();
+      const oldTag = cached ? (cached.headers.get("etag") || cached.headers.get("last-modified")) : null;
+      const newTag = res.headers.get("etag") || res.headers.get("last-modified");
+      await cache.put("./", fresh);
+      if (cached && oldTag && newTag && oldTag !== newTag) notifyClientsUpdated();
+    }
+    return res;
+  });
+  if (cached) {
+    event.waitUntil(network.catch(() => {}));
+    return cached;
+  }
+  try { return await network; } catch (e) { return Response.error(); }
+}
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+
+  // 사이트 화면 (주소 뒤 ?ptype=... 같은 값은 무시하고 같은 화면 저장본 사용)
+  if (req.mode === "navigate" && req.url.startsWith(SCOPE_URL) && url.pathname.replace(/index\.html$/, "") === new URL(SCOPE_URL).pathname) {
+    event.respondWith(handleNavigation(event));
+    return;
+  }
+
+  // 버전이 고정된 외부 파일 (폰트, Firebase SDK) + 아이콘
+  const isStatic = url.hostname === "cdn.jsdelivr.net" || url.hostname === "www.gstatic.com" ||
+    (req.url.startsWith(SCOPE_URL) && /\.(png|json)$/.test(url.pathname) && !/firebase-messaging-sw/.test(url.pathname));
+  if (isStatic) {
+    event.respondWith((async () => {
+      const cache = await caches.open(STATIC_CACHE);
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone()).catch(() => {});
+      return res;
+    })());
+  }
+  // 그 외(Apps Script 데이터, 구글 드라이브 사진 등)는 서비스워커가 관여하지 않는다
 });

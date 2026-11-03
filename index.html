@@ -5,7 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>정수와진하</title>
   <!-- 잠금: 로그인 토큰이 있는 기기만 내용을 보여준다 (화면이 그려지기 전에 바로 판단해서 깜빡임 없음) -->
-  <script>try { if (localStorage.getItem('auth_token')) document.documentElement.classList.add('unlocked'); } catch (e) {}</script>
+  <script>
+    // ⚡ 첫 데이터 요청을 페이지 맨 앞에서 바로 출발시킨다 (아래 200KB짜리 화면 코드를 읽는 동안 서버 응답을 기다림)
+    try {
+      var __t = localStorage.getItem('auth_token');
+      if (__t) {
+        document.documentElement.classList.add('unlocked');
+        window.__earlyData = fetch("https://script.google.com/macros/s/AKfycbzpQVo3OSQjUQvQlR_uEVsiXWMwNoZjMaFnZO5LZu7_40SRElPb1p1sVfdI5VvM8sOa/exec?_=" + Date.now() + "&t=" + encodeURIComponent(__t), { cache: "no-store" })
+          .then(function (r) { return r.json(); }).catch(function () { return null; });
+      }
+    } catch (e) {}
+  </script>
   <meta name="theme-color" content="#000000" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
@@ -2447,6 +2457,21 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         .replace(/'/g, '&#39;');
     }
 
+    // ⚡ 사진 주소 단축: drive.google.com/thumbnail 은 매번 lh3.googleusercontent.com 으로 한 번 더 넘겨주는(리다이렉트)
+    //    단계가 있어서 사진 하나당 0.3~0.4초씩 더 걸리고 브라우저 캐시도 잘 안 됐다. 최종 주소로 바로 요청한다.
+    //    (혹시 실패하면 아래 오류 처리기가 원래 주소로 자동 복귀)
+    function fastImg(u) {
+      if (!u || typeof u !== 'string') return u;
+      const m = u.match(/^https:\/\/drive\.google\.com\/thumbnail\?id=([^&]+)&sz=w(\d+)/);
+      return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w${m[2]}` : u;
+    }
+    document.addEventListener('error', (e) => {
+      const el = e.target;
+      if (!el || el.tagName !== 'IMG') return;
+      const m = (el.getAttribute('src') || '').match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([^=]+)=w(\d+)/);
+      if (m) el.src = `https://drive.google.com/thumbnail?id=${m[1]}&sz=w${m[2]}`;
+    }, true);
+
     function onToastClick() {
       const act = __toastAction;
       __toastAction = null;
@@ -2773,8 +2798,21 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         try {
           // ⚠️ 캐시 버스팅 필수: Apps Script의 exec 주소는 매번 새로운 임시 주소(user_content_key)로
           // 리다이렉트되는데, 같은 주소만 반복하면 브라우저가 리다이렉트를 캐시해서 만료된 주소로 가는 경우가 있다.
-          const res = await gasFetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
-          const json = await res.json();
+          let json = null;
+          if (window.__earlyData) {
+            // 페이지 맨 앞에서 미리 출발시킨 첫 요청 결과를 그대로 쓴다
+            const early = window.__earlyData; window.__earlyData = null;
+            json = await early;
+            if (json && json.code === 'auth_required') {
+              setAuthToken('');
+              showLockScreen('다시 들어와 주세요. (비밀번호가 바뀌었거나 로그인이 만료됐어요)');
+              return;
+            }
+          }
+          if (!json) {
+            const res = await gasFetch(GAS_WEB_APP_URL + "?_=" + Date.now(), { cache: "no-store" });
+            json = await res.json();
+          }
           if (!(json && json.status === "success" && json.data)) {
             console.warn('[loadFromCloudSilently] 서버 응답 이상:', json);
             setSyncStatus("error", "응답 오류");
@@ -2939,7 +2977,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const settings = getPhotoSettings();
 
       if (saved) {
-        img.src = saved;
+        img.src = fastImg(saved);
         applyPhotoTransform(img, settings);
         img.style.display = 'block';
         placeholder.style.display = 'none';
@@ -2956,7 +2994,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         return;
       }
       const previewImg = document.getElementById('cropPreviewImg');
-      previewImg.src = saved;
+      previewImg.src = fastImg(saved);
 
       const settings = getPhotoSettings();
       document.getElementById('sliderZoom').value = settings.zoom || 100;
@@ -3293,10 +3331,10 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         return;
       }
 
-      grid.innerHTML = filtered.map((item) => {
+      grid.innerHTML = filtered.map((item, cardIdx) => {
         const media = normalizeMediaList(item);
         const cover = media.length > 0 ? media[0] : null;
-        const coverImg = cover ? (cover.thumbUrl || cover.url) : '';
+        const coverImg = cover ? fastImg(cover.thumbUrl || cover.url) : '';
         const count = media.length;
         const folderUrl = item.folderUrl || MAIN_DRIVE_URL;
 
@@ -3304,7 +3342,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           <div class="memory-card" onclick="openLightbox('${item.id}')">
             <div class="memory-img-wrapper">
               ${coverImg
-                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async" />`
+                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" ${cardIdx < 4 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" />`
                 : `<div class="memory-img memory-img-placeholder">🖼<span>사진 준비 중</span></div>`}
               ${cover && cover.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
               <span class="memory-tag-badge">${getCategoryName(item.category)}</span>
@@ -3567,7 +3605,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       }
       container.innerHTML = editingItemMedia.map((m, idx) => `
         <div class="edit-photo-thumb-wrap">
-          <img src="${m.thumbUrl || m.url}" class="edit-photo-thumb" />
+          <img src="${fastImg(m.thumbUrl || m.url)}" class="edit-photo-thumb" />
           ${m.type === 'video' ? `<span class="media-play-badge" style="width:20px;height:20px;font-size:0.6rem;">▶</span>` : ''}
           <button class="btn-remove-edit-photo" onclick="removeEditPhoto(${idx})" title="삭제">✕</button>
         </div>
@@ -3839,8 +3877,8 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         imgEl.style.display = 'block';
         // ⚡ 앨범에서 이미 받아둔 작은 사진을 먼저 보여주고, 선명한 원본은 다 받으면 조용히 바꾼다
         //    (예전엔 큰 원본이 다 올 때까지 빈 화면/이전 사진이 보였다)
-        const full = current.url;
-        const thumb = current.thumbUrl;
+        const full = fastImg(current.url);
+        const thumb = fastImg(current.thumbUrl);
         if (thumb && thumb !== full && !__loadedFullImages.has(full)) {
           imgEl.src = thumb;
           const pre = new Image();
@@ -3858,10 +3896,11 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
         const n = currentLightboxMedia.length;
         if (n <= 1) return;
         const m = currentLightboxMedia[(currentLightboxIndex + step + n) % n];
-        if (m && m.type !== 'video' && m.url && !__loadedFullImages.has(m.url) && /^https?:/.test(m.url)) {
+        if (m && m.type !== 'video' && m.url && !__loadedFullImages.has(fastImg(m.url)) && /^https?:/.test(m.url)) {
+          const fu = fastImg(m.url);
           const p = new Image();
-          p.onload = () => __loadedFullImages.add(m.url);
-          p.src = m.url;
+          p.onload = () => __loadedFullImages.add(fu);
+          p.src = fu;
         }
       });
 
@@ -3878,7 +3917,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
         thumbsContainer.innerHTML = currentLightboxMedia.map((m, idx) => `
           <div class="thumb-preview-item-wrap">
-            <img src="${m.thumbUrl || m.url}" class="thumb-preview-item ${idx === currentLightboxIndex ? 'active' : ''}" onclick="setSlideIndex(${idx})" />
+            <img src="${fastImg(m.thumbUrl || m.url)}" class="thumb-preview-item ${idx === currentLightboxIndex ? 'active' : ''}" onclick="setSlideIndex(${idx})" />
             ${m.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
           </div>
         `).join('');
@@ -4606,6 +4645,18 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     if (!isLoggedIn()) showLockScreen('');
     handleIncomingPushLink(); // 알림을 눌러서 들어온 경우 해당 항목으로 이동 (내부에서 첫 동기화를 기다린다)
     loadFromCloudSilently().finally(() => schedulePoll());
+
+    // ⚡ 앱 화면을 폰에 저장해 두는 서비스워커 (알림용과 같은 파일). 두 번째 방문부터 바로 열린다.
+    if ('serviceWorker' in navigator) {
+      const regSW = () => navigator.serviceWorker.register('./firebase-messaging-sw.js').catch(() => {});
+      if (document.readyState === 'complete') setTimeout(regSW, 1500);
+      else window.addEventListener('load', () => setTimeout(regSW, 1500));
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'jj-update-available') {
+          showToast('새 버전이 준비됐어요 · 눌러서 적용', '✨', 8000, () => location.reload());
+        }
+      });
+    }
   </script>
   <!-- 레이아웃 테마 시트 -->
   <div class="modal-overlay" id="layoutModal" onclick="closeLayoutModal()">
