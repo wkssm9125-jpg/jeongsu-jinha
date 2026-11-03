@@ -1239,6 +1239,17 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 }
 .lock-btn:disabled { opacity:.6; }
 .lock-error { min-height:20px; font-size:13px; color:var(--accent-pink, #ff375f); font-weight:600; }
+.lock-users { margin-top:22px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.lock-user {
+  padding:14px 10px; border-radius:16px; border:1.5px solid var(--border-card, #333); background:var(--bg-card, #1c1c1e);
+  color:var(--text-primary, #fff); font-size:16px; font-weight:800; font-family:inherit; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px; transition:.15s;
+}
+.lock-user span { font-size:20px; }
+.lock-user.active.him { border-color:var(--chat-him, #0a84ff); background:rgba(10,132,255,.14); }
+.lock-user.active.her { border-color:var(--chat-her, #ff375f); background:rgba(255,55,95,.14); }
+.lock-user .lock-new { font-size:10.5px; font-weight:700; opacity:.7; margin-left:2px; }
+.lock-form { margin-top:14px; }
 .pw-field { margin-bottom:10px; }
 .apple-toast.clickable::after { content:'›'; margin-left:8px; opacity:.6; font-size:16px; }
 /* 채팅 전송 상태 */
@@ -1265,13 +1276,26 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     <div class="lock-card">
       <div class="lock-heart">♥</div>
       <div class="lock-title">정수<span class="heart">♥</span>진하</div>
-      <div class="lock-sub">우리 둘만의 공간이에요. 비밀번호를 입력해 주세요.</div>
-      <form class="lock-form" onsubmit="event.preventDefault(); submitLogin();">
-        <input type="text" name="username" value="정수와진하" autocomplete="username" style="display:none;" aria-hidden="true" />
-        <input type="password" id="lockPassword" class="lock-input" placeholder="비밀번호" autocomplete="current-password" />
+      <div class="lock-sub" id="lockSub">누구인지 고르고, 내 비밀번호를 입력해 주세요.</div>
+      <div class="lock-users">
+        <button type="button" class="lock-user him" id="lockUserHim" onclick="selectLockUser('Him')"><span>💙</span>정수</button>
+        <button type="button" class="lock-user her" id="lockUserHer" onclick="selectLockUser('Her')"><span>💗</span>진하</button>
+      </div>
+      <!-- 로그인 -->
+      <form class="lock-form" id="lockLoginForm" onsubmit="event.preventDefault(); submitLogin();">
+        <input type="text" name="username" id="lockUsername" value="" autocomplete="username" style="display:none;" aria-hidden="true" />
+        <input type="password" id="lockPassword" class="lock-input" placeholder="내 비밀번호" autocomplete="current-password" />
         <button type="submit" class="lock-btn" id="lockSubmit">들어가기</button>
-        <div class="lock-error" id="lockError"></div>
       </form>
+      <!-- 처음 등록 -->
+      <form class="lock-form" id="lockRegisterForm" style="display:none;" onsubmit="event.preventDefault(); submitRegister();">
+        <input type="text" name="username" id="lockRegUsername" value="" autocomplete="username" style="display:none;" aria-hidden="true" />
+        <input type="password" id="lockInvite" class="lock-input" placeholder="공용 비밀번호 (처음 받은 것)" autocomplete="off" />
+        <input type="password" id="lockNewPw" class="lock-input" placeholder="새 내 비밀번호 (4자 이상)" autocomplete="new-password" />
+        <input type="password" id="lockNewPw2" class="lock-input" placeholder="새 내 비밀번호 한 번 더" autocomplete="new-password" />
+        <button type="submit" class="lock-btn" id="lockRegSubmit">등록하고 들어가기</button>
+      </form>
+      <div class="lock-error" id="lockError"></div>
     </div>
   </div>
 
@@ -1565,8 +1589,8 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
       <div class="settings-group-label">보안</div>
       <div class="settings-group">
-        <div class="nav-settings-item" onclick="openPasswordModal()">
-          <span>🔑 비밀번호 변경</span>
+        <div class="nav-settings-item" onclick="onPasswordMenu()">
+          <span id="settingsPasswordLabel">🔑 내 비밀번호 변경</span>
         </div>
         <div class="nav-settings-item" onclick="lockThisDevice()">
           <span>🔒 이 기기 잠그기</span>
@@ -1917,8 +1941,8 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
   <!-- 비밀번호 변경 -->
   <div class="modal-overlay" id="passwordModal" onclick="closePasswordModal()">
     <div class="apple-modal" onclick="event.stopPropagation()">
-      <h3 class="modal-title">🔑 비밀번호 변경</h3>
-      <p class="modal-desc">바꾸면 다른 폰은 자동으로 잠겨요. 새 비밀번호를 상대에게도 알려주세요.</p>
+      <h3 class="modal-title">🔑 내 비밀번호 변경</h3>
+      <p class="modal-desc">내 비밀번호만 바뀌어요. 내가 쓰던 다른 기기는 자동으로 잠기고, 상대 폰은 그대로예요.</p>
       <form onsubmit="event.preventDefault(); submitPasswordChange();">
         <input type="text" name="username" value="정수와진하" autocomplete="username" style="display:none;" aria-hidden="true" />
         <input type="password" id="pwCurrent" class="memory-input-control pw-field" placeholder="지금 비밀번호" autocomplete="current-password" />
@@ -2040,7 +2064,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       if (isPost) {
         try {
           const body = JSON.parse(opts.body || '{}');
-          if (AUTH_TOKEN && body.action !== 'login') body.token = AUTH_TOKEN;
+          if (AUTH_TOKEN && body.action !== 'login' && body.action !== 'register') body.token = AUTH_TOKEN;
           opts.body = JSON.stringify(body);
         } catch (e) {}
       } else if (AUTH_TOKEN) {
@@ -2066,13 +2090,106 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       return res;
     }
 
-    function showLockScreen(msg) {
+    // 사람별 로그인 토큰(v2.Him... / v2.Her...)이면 누구인지 알 수 있다
+    function tokenUser() {
+      const p = String(AUTH_TOKEN || '').split('.');
+      return p[0] === 'v2' && (p[1] === 'Him' || p[1] === 'Her') ? p[1] : null;
+    }
+    let __lockUser = localStorage.getItem('lock_user') || (localStorage.getItem('identity_confirmed') === '1' ? localStorage.getItem('couple_sender') : null);
+    let __lockRegistered = null; // { Him: true/false, Her: true/false }
+    let __lockForceRegister = false;
+    async function loadAuthStatus() {
+      try {
+        const res = await gasFetch(GAS_WEB_APP_URL + '/auth-status?_=' + Date.now(), { cache: 'no-store' });
+        const j = await res.json();
+        if (j && j.registered) __lockRegistered = j.registered;
+      } catch (e) {}
+      renderLockScreen();
+    }
+    function renderLockScreen() {
+      const u = __lockUser;
+      const names = { Him: '정수', Her: '진하' };
+      ['Him', 'Her'].forEach(x => {
+        const b = document.getElementById('lockUser' + x);
+        if (!b) return;
+        b.classList.toggle('active', u === x);
+        const isNew = __lockRegistered && !__lockRegistered[x];
+        b.innerHTML = (x === 'Him' ? '<span>💙</span>정수' : '<span>💗</span>진하') + (isNew ? '<em class="lock-new">처음</em>' : '');
+      });
+      const register = !!u && (__lockForceRegister || (__lockRegistered && !__lockRegistered[u]));
+      document.getElementById('lockLoginForm').style.display = u && !register ? '' : 'none';
+      document.getElementById('lockRegisterForm').style.display = u && register ? '' : 'none';
+      document.getElementById('lockUsername').value = u ? names[u] : '';
+      document.getElementById('lockRegUsername').value = u ? names[u] : '';
+      const sub = document.getElementById('lockSub');
+      if (!u) sub.innerText = '누구인지 먼저 골라 주세요.';
+      else if (register) sub.innerText = names[u] + '의 비밀번호를 처음 만들어요. 처음 받은 공용 비밀번호를 한 번만 넣어 주세요.';
+      else sub.innerText = names[u] + '의 비밀번호를 입력해 주세요.';
+    }
+    function selectLockUser(u) {
+      __lockUser = u;
+      __lockForceRegister = false;
+      localStorage.setItem('lock_user', u);
+      document.getElementById('lockError').innerText = '';
+      renderLockScreen();
+      setTimeout(() => {
+        const reg = document.getElementById('lockRegisterForm').style.display !== 'none';
+        const i = document.getElementById(reg ? 'lockInvite' : 'lockPassword'); if (i) i.focus();
+      }, 30);
+    }
+    function showLockScreen(msg, opts) {
       const el = document.getElementById('lockScreen');
       if (!el) return;
       document.documentElement.classList.remove('unlocked');
+      if (opts && opts.user) __lockUser = opts.user;
+      __lockForceRegister = !!(opts && opts.register);
       const err = document.getElementById('lockError');
       if (err) err.innerText = msg || '';
-      setTimeout(() => { const i = document.getElementById('lockPassword'); if (i) i.focus(); }, 50);
+      renderLockScreen();
+      loadAuthStatus();
+      setTimeout(() => { const i = document.getElementById(__lockForceRegister ? 'lockInvite' : 'lockPassword'); if (i && __lockUser) i.focus(); }, 50);
+    }
+    // 로그인한 사람 = 이 기기의 주인 (따로 고를 필요 없음)
+    function applyLoginUser(user) {
+      if (user !== 'Him' && user !== 'Her') return;
+      localStorage.setItem('lock_user', user);
+      localStorage.setItem('identity_confirmed', '1');
+      if (typeof setSender === 'function') setSender(user);
+    }
+    let __registering = false;
+    async function submitRegister() {
+      if (__registering) return;
+      const err = document.getElementById('lockError');
+      const btn = document.getElementById('lockRegSubmit');
+      const invite = document.getElementById('lockInvite').value;
+      const p1 = document.getElementById('lockNewPw').value;
+      const p2 = document.getElementById('lockNewPw2').value;
+      if (!__lockUser) { err.innerText = '누구인지 먼저 골라 주세요.'; return; }
+      if (!invite || !p1) { err.innerText = '빈 칸을 채워 주세요.'; return; }
+      if (p1.length < 4) { err.innerText = '새 비밀번호는 4자 이상으로 해 주세요.'; return; }
+      if (p1 !== p2) { err.innerText = '새 비밀번호가 서로 달라요.'; return; }
+      __registering = true; btn.disabled = true; btn.innerText = '등록 중...'; err.innerText = '';
+      try {
+        const res = await gasFetch(GAS_WEB_APP_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'register', user: __lockUser, inviteCode: invite, newPassword: p1 })
+        });
+        const j = await res.json();
+        if (j && j.status === 'success' && j.token) {
+          ['lockInvite', 'lockNewPw', 'lockNewPw2'].forEach(id => { document.getElementById(id).value = ''; });
+          setAuthToken(j.token);
+          applyLoginUser(j.user || __lockUser);
+          onUnlocked();
+          showToast('내 비밀번호를 만들었어요. 다음부터는 이걸로 들어오면 돼요 🔑', '🔐', 4000);
+        } else {
+          if (j && j.code === 'already_registered') { __lockForceRegister = false; if (__lockRegistered) __lockRegistered[__lockUser] = true; renderLockScreen(); }
+          err.innerText = (j && j.message) || '등록에 실패했어요.';
+        }
+      } catch (e) {
+        err.innerText = '연결에 실패했어요. 인터넷을 확인해 주세요.';
+      } finally {
+        __registering = false; btn.disabled = false; btn.innerText = '등록하고 들어가기';
+      }
     }
 
     let __loggingIn = false;
@@ -2082,19 +2199,25 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       const btn = document.getElementById('lockSubmit');
       const err = document.getElementById('lockError');
       const pw = input.value;
+      if (!__lockUser) { err.innerText = '누구인지 먼저 골라 주세요.'; return; }
       if (!pw) { err.innerText = '비밀번호를 입력해 주세요.'; return; }
       __loggingIn = true;
       btn.disabled = true; btn.innerText = '확인 중...'; err.innerText = '';
       try {
         const res = await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'login', password: pw })
+          body: JSON.stringify({ action: 'login', user: __lockUser, password: pw })
         });
         const j = await res.json();
         if (j && j.status === 'success' && j.token) {
           input.value = '';
           setAuthToken(j.token);
+          applyLoginUser(j.user || __lockUser);
           onUnlocked();
+        } else if (j && j.code === 'not_registered') {
+          if (__lockRegistered) __lockRegistered[__lockUser] = false;
+          renderLockScreen();
+          err.innerText = (j && j.message) || '';
         } else {
           err.innerText = (j && j.message) || '로그인에 실패했어요.';
           input.select();
@@ -2117,6 +2240,27 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
       ensurePushRegistration(true).catch(() => {});
       showToast('어서와요 💕', '🔓', 1800);
       if (!hasChosenIdentity()) setTimeout(() => openIdentityModal(true), 700); // 처음 쓰는 기기면 누구 폰인지 고르기
+      updateSecurityUI();
+    }
+
+    // 설정 > 보안: 공용 비밀번호로 들어온 기기는 "내 비밀번호 만들기", 내 비밀번호로 들어온 기기는 "내 비밀번호 변경"
+    function updateSecurityUI() {
+      const el = document.getElementById('settingsPasswordLabel');
+      if (el) el.innerText = tokenUser() ? '🔑 내 비밀번호 변경' : '🔑 내 비밀번호 만들기';
+    }
+    function onPasswordMenu() {
+      if (tokenUser()) { openPasswordModal(); return; }
+      // 공용 토큰 기기 → 잠금 화면의 "처음 등록"으로 보내 내 비밀번호를 만들게 한다
+      if (!confirm('이제 정수·진하가 각자 비밀번호를 써요. 지금 내 비밀번호를 만들까요?')) return;
+      const me = hasChosenIdentity() ? currentSender : null;
+      setAuthToken(''); disconnectRealtime();
+      showLockScreen('', { user: me, register: true });
+    }
+    function maybeNudgePersonalPassword() {
+      if (!isLoggedIn() || tokenUser()) return;
+      if (sessionStorage.getItem('pw_nudged')) return;
+      sessionStorage.setItem('pw_nudged', '1');
+      setTimeout(() => showToast('이제 각자 비밀번호를 쓸 수 있어요 · 눌러서 만들기', '🔑', 7000, onPasswordMenu), 2500);
     }
 
     function lockThisDevice() {
@@ -2154,7 +2298,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
           setAuthToken(j.token);
           connectRealtime(true);
           closePasswordModal();
-          showToast('비밀번호를 바꿨어요. 다른 폰은 새 비밀번호로 다시 들어가야 해요.', '🔑', 5000);
+          showToast('내 비밀번호를 바꿨어요. 내 다른 기기는 새 비밀번호로 다시 들어가야 해요.', '🔑', 5000);
         } else {
           err.innerText = (j && j.message) || '변경에 실패했어요.';
         }
@@ -4335,6 +4479,14 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 
     let __identityForced = false;
     function openIdentityModal(force) {
+      if (tokenUser()) {
+        const other = tokenUser() === 'Him' ? 'Her' : 'Him';
+        const names = { Him: '정수', Her: '진하' };
+        if (!confirm('지금은 ' + names[tokenUser()] + '(으)로 로그인돼 있어요. ' + names[other] + '(으)로 쓰려면 잠그고 ' + names[other] + '의 비밀번호로 들어와야 해요. 지금 잠글까요?')) return;
+        setAuthToken(''); disconnectRealtime();
+        showLockScreen('', { user: other });
+        return;
+      }
       __identityForced = !!force;
       renderIdentityUI();
       document.getElementById('identityModal').classList.add('active');
@@ -4738,6 +4890,7 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
     updateNotificationSoundUI();
 
     if (!isLoggedIn()) showLockScreen('');
+    else { if (tokenUser()) applyLoginUser(tokenUser()); updateSecurityUI(); maybeNudgePersonalPassword(); }
     handleIncomingPushLink(); // 알림을 눌러서 들어온 경우 해당 항목으로 이동 (내부에서 첫 동기화를 기다린다)
     loadFromCloudSilently().finally(() => schedulePoll());
     connectRealtime();
