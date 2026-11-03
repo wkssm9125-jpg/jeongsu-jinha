@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032234" />
+  <meta name="jj-version" content="202611032239" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2928,8 +2928,9 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'register_push_token', fcmToken: token, sender: currentSender, secret: APP_SECRET })
+          body: JSON.stringify({ action: 'register_push_token', fcmToken: token, sender: currentSender, deviceId: pushDeviceId(), secret: APP_SECRET })
         });
+        localStorage.setItem('push_reg_v2', '1');
         localStorage.setItem('push_enabled', '1');
         localStorage.setItem('fcm_token', token);
         localStorage.setItem('fcm_token_sender', currentSender);
@@ -5078,7 +5079,15 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
 
     // 푸시 등록을 매번 확인한다: 토큰은 가끔 바뀌므로(만료/재발급) 사이트를 열 때마다 현재 토큰을 다시 받아
     // 서버에 "이 기기 = 누구"와 함께 등록하고, 사이트가 열려 있는 동안 오는 알림(포그라운드)도 받도록 연결한다.
+    // 이 기기(브라우저) 고유 번호: 같은 폰이 알림 등록을 여러 번 해도 서버에 하나만 남게 한다
+    function pushDeviceId() {
+      let id = localStorage.getItem('push_device_id');
+      if (!id) { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); localStorage.setItem('push_device_id', id); }
+      return id;
+    }
     async function ensurePushRegistration(forceRegister) {
+      // 기기 번호 방식으로 바뀐 뒤 처음 한 번은 꼭 다시 등록 (예전에 쌓인 중복 등록을 서버가 정리하도록)
+      if (localStorage.getItem('push_reg_v2') !== '1') forceRegister = true;
       if (localStorage.getItem('push_enabled') !== '1') return;
       if (!isPushConfigured() || !GAS_WEB_APP_URL) return;
       if (!isLoggedIn()) return;
@@ -5102,8 +5111,10 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
             gasFetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({ action: 'unregister_push_token', fcmToken: stored, secret: APP_SECRET }) }).catch(() => {});
           }
-          await gasFetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'register_push_token', fcmToken: token, sender: currentSender, secret: APP_SECRET }) });
+          const rr = await gasFetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'register_push_token', fcmToken: token, sender: currentSender, deviceId: pushDeviceId(), secret: APP_SECRET }) });
+          const rj = await rr.json().catch(() => null);
+          if (rj && rj.status === 'success') localStorage.setItem('push_reg_v2', '1');
           localStorage.setItem('fcm_token', token);
           localStorage.setItem('fcm_token_sender', currentSender);
         }

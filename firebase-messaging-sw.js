@@ -59,6 +59,9 @@ messaging.onBackgroundMessage((payload) => {
   const title = notification.title || '💖 정수와진하';
   const body = notification.body || '새로운 정보가 추가되었습니다. 확인해주세요!';
   savePushHistory(title, body, data.type, data.targetId); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
+  // ⚠️ 알림 내용(notification)이 실린 메시지는 Firebase가 이미 알림을 띄운다.
+  //    예전엔 여기서 한 번 더 띄워서 알림이 두 개씩 왔다 → 내용이 없는(데이터만 있는) 메시지일 때만 직접 띄운다.
+  if (payload.notification) return;
   const options = {
     body: body,
     // 알림마다 다른 태그를 써서 쌓이게 하고, 혹시 같은 태그로 교체되더라도 다시 울리도록(renotify) 한다.
@@ -68,7 +71,7 @@ messaging.onBackgroundMessage((payload) => {
     vibrate: [180, 80, 180],
     data: { url: (payload.fcmOptions && payload.fcmOptions.link) || (payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || '/', type: data.type || '', targetId: data.targetId || '' }
   };
-  self.registration.showNotification(title, options);
+  return self.registration.showNotification(title, options);
 });
 
 // 알림을 눌렀을 때 사이트를 열어주되, 그냥 홈으로 가는 게 아니라 이 알림이 알려준 항목(추억/쪽지/채팅 등)으로
