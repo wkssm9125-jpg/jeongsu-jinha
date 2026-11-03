@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032259" />
+  <meta name="jj-version" content="202611032303" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1893,6 +1893,20 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
 [data-theme="tron"] ::-webkit-scrollbar { background:#02060b; }
 [data-theme="tron"] ::-webkit-scrollbar-thumb { background:rgba(0,229,255,.4); }
 @media (prefers-reduced-motion: reduce) { [data-theme="tron"] .tron-cycle, [data-theme="tron"] .tron-scan { display:none; } }
+
+/* =========================================================================
+   35. 아이폰(iOS 26 이상) 홈 화면 앱: 상단바가 뿌옇게 보이던 문제
+   iOS가 상태표시줄 바로 아래 띠에 "흐림 효과"를 덧그린다(페이지 CSS로는 끌 수 없음).
+   단, 화면 맨 위에 붙은(fixed/sticky) 상자에 배경색이 칠해져 있으면 iOS가 흐림 대신 그 색을 쓴다.
+   예전엔 글씨 선명도 때문에 상단바 배경을 투명하게 하고 뒤쪽 층(::after)에만 색을 칠해서 iOS가 이를 못 알아봤다.
+   → 상단바 자체에 불투명 배경색을 다시 칠한다(흐림 필터는 없이 색만이라 글씨는 그대로 선명).
+   ========================================================================= */
+nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important; }
+[data-theme="win98"] { --nav-solid:#c0c0c0; }
+/* 혹시 남는 흐림 띠를 피하도록 홈 화면 앱(휴대폰)에서는 글씨 줄을 조금 아래로 */
+@media (display-mode: standalone) and (max-width:1023px) {
+  nav.apple-nav { padding-top:calc(12px + env(safe-area-inset-top,0px)) !important; }
+}
   </style>
 </head>
 <body>
