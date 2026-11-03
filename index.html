@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032243" />
+  <meta name="jj-version" content="202611032253" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1541,6 +1541,146 @@ html:not([data-theme="win98"]) .note-item.blue { background:color-mix(in srgb, v
 /* (2px 틈은 가는 선처럼 보여서 쓰지 않는다: 한 덩어리로 두거나, 확실한 여백으로 띄운다) */
 html:not([data-theme="win98"]) .bucket-list { display:flex; flex-direction:column; gap:6px; }
 html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); padding:4px 12px !important; }
+
+/* =========================================================================
+   32. 우리 캘린더
+   ========================================================================= */
+.cal-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.cal-nav { display:flex; align-items:center; gap:2px; }
+.cal-nav-btn { width:34px; height:32px; background:var(--bg-glass); border:none; color:var(--text-secondary); font-size:18px; line-height:1; cursor:pointer; }
+.cal-title { min-width:96px; height:32px; background:none; border:none; color:var(--text-primary); font-size:13.5px; font-weight:700; cursor:pointer; font-variant-numeric:tabular-nums; }
+.cal-box { background:var(--bg-card); border:1px solid var(--border-card); border-radius:var(--radius-large); padding:8px 6px 10px; }
+.cal-week, .cal-grid { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); }
+.cal-week span { text-align:center; font-size:10.5px; font-weight:700; color:var(--text-tertiary); padding:2px 0 4px; }
+.cal-week span:first-child { color:var(--accent-pink); }
+.cal-cell {
+  min-height:50px; padding:3px 2px 2px; background:none; border:none; color:var(--text-primary);
+  display:flex; flex-direction:column; align-items:stretch; gap:1px; cursor:pointer; text-align:left; overflow:hidden; min-width:0;
+}
+.cal-num { display:flex; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:600; height:20px; font-variant-numeric:tabular-nums; }
+.cal-cell.sun .cal-num { color:var(--accent-pink); }
+.cal-cell.other { opacity:.32; }
+.cal-cell.today .cal-num { color:var(--accent-pink); font-weight:800; text-decoration:underline; text-underline-offset:3px; }
+.cal-cell.sel { background:color-mix(in srgb, var(--accent-pink) 18%, transparent); }
+.cal-photo { width:5px; height:5px; background:var(--text-tertiary); display:inline-block; border-radius:50%; }
+.cal-lb { display:block; font-size:9.5px; line-height:13px; padding:0 2px; white-space:nowrap; overflow:hidden; text-overflow:clip; font-weight:600; }
+.cal-lb.ann { color:var(--accent-pink); }
+.cal-lb.ev.him { background:color-mix(in srgb, var(--chat-him) 26%, transparent); }
+.cal-lb.ev.her { background:color-mix(in srgb, var(--chat-her) 26%, transparent); }
+.cal-more { font-size:9px; color:var(--text-tertiary); text-align:center; line-height:11px; }
+.cal-day { margin-top:8px; padding:8px 6px 0; }
+.cal-day-title { font-size:12.5px; font-weight:700; color:var(--text-secondary); margin-bottom:6px; }
+.cal-day-list { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
+.cal-empty { font-size:12px; color:var(--text-tertiary); padding:2px 0 4px; }
+.cal-item { display:flex; align-items:center; gap:8px; min-height:34px; padding:0 0 0 10px; background:var(--bg-glass); font-size:13.5px; }
+.cal-item-mark { width:14px; flex-shrink:0; text-align:center; font-size:12px; }
+.cal-item.ev .cal-item-mark::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--chat-him); }
+.cal-item.ev.her .cal-item-mark::before { background:var(--chat-her); }
+.cal-item.ann { color:var(--accent-pink); font-weight:700; }
+.cal-item.mem { cursor:pointer; padding-right:10px; }
+.cal-item-time { font-size:12px; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+.cal-item-text { flex:1; min-width:0; word-break:break-word; padding:6px 0; }
+.cal-item-go { color:var(--text-tertiary); }
+.cal-item-btn { min-width:36px; min-height:34px; background:none; border:none; color:var(--text-tertiary); font-size:13px; cursor:pointer; }
+.cal-add-row { display:grid; grid-template-columns:minmax(0,1fr) 92px auto; gap:6px; }
+.cal-input, .cal-time {
+  min-height:40px; background:var(--bg-glass); border:1px solid var(--border-card); color:var(--text-primary);
+  font-size:16px; padding:0 10px; outline:none; border-radius:var(--radius-small);
+}
+.cal-input { width:100%; min-width:0; }
+.cal-time { width:100% !important; min-width:0; max-width:none; padding:0 6px !important; font-size:14px !important; -webkit-appearance:none; appearance:none; font-variant-numeric:tabular-nums; }
+.cal-time::-webkit-date-and-time-value { text-align:left; }
+.cal-add-btn { min-height:40px; padding:0 14px; background:var(--accent-pink); color:#fff; border:none; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; border-radius:var(--radius-small); }
+[data-theme="win98"] .cal-box { background:#c0c0c0; }
+[data-theme="win98"] .cal-cell.sel { background:#000080; color:#fff; }
+[data-theme="win98"] .cal-cell.sel .cal-num { color:#fff; }
+[data-theme="win98"] .cal-item { background:#fff; color:#000; }
+
+/* =========================================================================
+   33. 한 화면에 더 많이 (여백·크기 줄이기)
+   ========================================================================= */
+section.hero { padding:8px var(--pad-x) 0; }
+.hero-inner { padding:14px 16px 12px; }
+.hero-eyebrow { display:none; }
+.dday-ring-inner { display:flex; align-items:center; gap:12px; }
+html:not([data-hero="orbit"]) .dday-big .dday-num { font-size:52px; }
+html:not([data-hero="orbit"]) .dday-big .dday-unit { font-size:17px; }
+.couple-photo-wrapper { width:50px; height:50px; }
+.dday-container { margin-top:10px; padding:6px 12px; }
+.hero-couple-row { margin-top:8px; gap:8px; }
+.hero-edit-btn { width:34px; height:34px; font-size:13px; }
+[data-hero="orbit"] .hero-inner { padding:16px 16px; }
+[data-hero="orbit"] .dday-ring { width:170px; height:170px; }
+[data-hero="orbit"] .couple-photo-wrapper { width:58px; height:58px; margin-bottom:4px; }
+[data-hero="orbit"] .dday-ring-inner { flex-direction:column; gap:0; }
+[data-hero="ticker"] .hero-inner { padding:14px var(--pad-x); }
+[data-hero="ticker"] .dday-big .dday-num { font-size:64px; }
+
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .hero-inner { display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:12px; align-items:center; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .dday-ring { grid-column:1 / -1; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .dday-container { margin-top:10px; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .hero-couple-row { margin-top:10px; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .hero-edit-btn { display:none; }
+.hero-couple-copy strong { font-size:12.5px; }
+.hero-couple-copy span { font-size:11.5px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+section.app-section { padding-top:14px; }
+.section-header { margin-bottom:8px; }
+.section-title { font-size:15.5px; }
+.qna-box, .bucket-card, .note-box { padding:12px; }
+
+/* 기념일: 가로로 넘기는 칩 한 줄 */
+html .anniversary-grid { flex-direction:row; overflow-x:auto; scrollbar-width:none; gap:6px; padding:8px; -webkit-overflow-scrolling:touch; }
+html .anniversary-grid::-webkit-scrollbar { display:none; }
+html .anniversary-card {
+  flex:0 0 auto; min-width:92px; min-height:0; flex-direction:column; align-items:flex-start; gap:2px;
+  padding:8px 10px; background:var(--bg-glass); border-bottom:none;
+}
+html .anni-info h4 { font-size:13px; }
+html .anni-info p { font-size:10.5px; }
+html .anni-dday { font-size:13px; }
+[data-layout="magazine"] .anniversary-card { padding:8px 10px; }
+
+/* 문답: 입력칸과 저장 버튼 한 줄 */
+.qna-question { margin-bottom:8px; }
+.qna-question-title { font-size:14px; }
+.qna-answers-grid { gap:6px; }
+.qna-person-card { padding:9px 11px; gap:4px; }
+.qna-person-header { margin-bottom:1px; }
+.qna-input-wrap { display:flex; gap:6px; align-items:center; }
+.qna-input-wrap .qna-input { flex:1; min-width:0; min-height:38px; }
+.qna-input-wrap .btn-save-qna { margin-top:0; align-self:auto; min-height:38px; padding:0 14px; flex-shrink:0; }
+
+/* 버킷 */
+.bucket-progress-wrapper { margin-bottom:5px; }
+.progress-bar-bg { margin-bottom:9px; height:5px; }
+.bucket-input-row { margin-bottom:8px; }
+.bucket-input, .btn-add-bucket { min-height:40px; }
+.bucket-item { min-height:40px; padding:0 !important; }
+html:not([data-theme="win98"]) .bucket-item { padding:0 4px 0 12px !important; }
+html:not([data-theme="win98"]) .bucket-list { gap:4px; }
+.bucket-item-left { min-height:40px; gap:10px; }
+.btn-del-bucket { min-width:40px; min-height:40px; }
+
+/* 쪽지: 입력칸 옆에 버튼 */
+.note-sender-line { margin-bottom:6px; }
+.note-box { display:flex; flex-direction:column; }
+.note-textarea { min-height:60px; height:60px; padding:9px 11px; margin-bottom:6px; font-size:16px; }
+.btn-save-note, .btn-cancel-edit-note { min-height:40px; }
+.notes-list { margin-top:10px; gap:6px; }
+.note-item { padding:8px 11px; }
+.note-item-meta { margin-bottom:2px; }
+.note-item-actions button { min-width:34px; min-height:30px; }
+.note-item-text { font-size:13.5px; line-height:1.5; }
+.notes-more-btn { min-height:38px; background:var(--bg-glass); border:none; color:var(--text-secondary); font-size:12.5px; font-weight:600; cursor:pointer; }
+[data-theme="win98"] .notes-more-btn { color:#000; }
+
+@media (min-width:1024px) {
+  #view-home.active #anniversaries { grid-column:1 / -1; }
+  #view-home.active #calendar { grid-column:1; }
+  #view-home.active #qna { grid-column:2; }
+  .cal-cell { min-height:64px; }
+}
   </style>
 </head>
 <body>
@@ -1654,21 +1794,38 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       </div>
     </section>
 
-    <div class="mood-bar">
-      <span style="color: var(--text-tertiary); font-size: 0.75rem;">Today's Mood:</span>
-      <span class="mood-tag active" onclick="setMood(this, '💖 보고싶어')">💖 보고싶어</span>
-      <span class="mood-tag" onclick="setMood(this, '🥰 행복해')">🥰 행복해</span>
-      <span class="mood-tag" onclick="setMood(this, '☕ 데이트가자')">☕ 데이트가자</span>
-      <span class="mood-tag" onclick="setMood(this, '🔋 충전필요')">🔋 충전필요</span>
-    </div>
 
     <section class="app-section" id="anniversaries">
       <div class="section-header">
         <div class="section-eyebrow">Milestones</div>
-        <h2 class="section-title">다가오는 우리의 기념일</h2>
+        <h2 class="section-title">다가오는 기념일</h2>
         <p class="section-desc">시작한 날짜를 기준으로 주요 일수와 매년 주년이 정확하게 계산됩니다.</p>
       </div>
       <div class="anniversary-grid" id="anniversaryGrid"></div>
+    </section>
+
+    <section class="app-section" id="calendar">
+      <div class="section-header cal-header">
+        <h2 class="section-title">우리 캘린더</h2>
+        <div class="cal-nav">
+          <button type="button" class="cal-nav-btn" onclick="calMove(-1)" aria-label="이전 달">‹</button>
+          <button type="button" class="cal-title" id="calTitle" onclick="calToday()" title="오늘로">2026년 11월</button>
+          <button type="button" class="cal-nav-btn" onclick="calMove(1)" aria-label="다음 달">›</button>
+        </div>
+      </div>
+      <div class="cal-box">
+        <div class="cal-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-day" id="calDay">
+          <div class="cal-day-title" id="calDayTitle"></div>
+          <div class="cal-day-list" id="calDayList"></div>
+          <div class="cal-add-row">
+            <input type="text" id="calEventInput" class="cal-input" maxlength="80" placeholder="이 날 일정 추가" onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) addCalEvent()" />
+            <input type="time" id="calEventTime" class="cal-time" aria-label="시간 (선택)" title="시간 (선택)" />
+            <button type="button" class="cal-add-btn" onclick="addCalEvent()">추가</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="app-section" id="qna">
@@ -1740,7 +1897,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">의 쪽지로 남겨져요</span>
           <button type="button" class="note-sender-change" onclick="openIdentityModal()">계정 변경</button>
         </div>
-        <textarea id="noteInput" class="note-textarea" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..." onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing){ event.preventDefault(); saveNote(); }"></textarea>
+        <textarea id="noteInput" class="note-textarea" rows="2" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..." onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing){ event.preventDefault(); saveNote(); }"></textarea>
         <div class="note-editor-actions">
           <button class="btn-save-note" id="btnSaveNote" onclick="saveNote()">쪽지 남기기</button>
           <button class="btn-cancel-edit-note" id="btnCancelEditNote" onclick="cancelEditNote()" style="display:none;">취소</button>
@@ -2820,6 +2977,9 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         scrollToSection('notes');
       } else if (type === 'bucket') {
         scrollToSection('bucket');
+      } else if (type === 'calendar') {
+        if (targetId && /^\d{4}-\d{2}-\d{2}$/.test(targetId)) calSelect(targetId);
+        scrollToSection('calendar');
       } else if (type === 'main_photo') {
         switchPage('home');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3151,6 +3311,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         qnaAnswers: getAllQnAAnswers(),
         buckets: getBuckets(),
         notes: JSON.parse(localStorage.getItem("couple_notes") || "[]"),
+        events: getCalEvents(),
         chatMessages: JSON.parse(localStorage.getItem("couple_chat") || "[]"),
         chatReadReceipts: JSON.parse(localStorage.getItem("couple_chat_read") || "{}")
       };
@@ -3166,6 +3327,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     let __lastSynced = null;
     const __deletedNotes = new Set();
     const __deletedBuckets = new Set();
+    const __deletedEvents = new Set();
     function persistSynced() { try { localStorage.setItem('jj_last_synced', JSON.stringify(__lastSynced)); } catch (e) {} }
     function snapshotSynced() { try { __lastSynced = JSON.parse(JSON.stringify(getFullAppState())); persistSynced(); } catch (e) {} }
     // 앱을 닫기 직전에 못 보낸 변경이 있으면 다음에 열 때 찾아서 보낼 수 있도록 기준점을 저장해 둔다
@@ -3244,6 +3406,8 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           const sentDeletedNotes = Array.from(__deletedNotes), sentDeletedBuckets = Array.from(__deletedBuckets);
           if (sentDeletedNotes.length) payload.notesDeleted = sentDeletedNotes;
           if (sentDeletedBuckets.length) payload.bucketsDeleted = sentDeletedBuckets;
+          const sentDeletedEvents = Array.from(__deletedEvents);
+          if (sentDeletedEvents.length) payload.eventsDeleted = sentDeletedEvents;
           payload.secret = APP_SECRET;
           payload.actor = currentSender; // 이 행동을 한 사람 — 백엔드가 "본인 기기엔 알림 안 보내기"에 사용
           if (req.notifyType) payload.notifyType = req.notifyType;
@@ -3269,6 +3433,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
             if (__lastSynced) { sentKeys.forEach(k => { __lastSynced[k] = JSON.parse(JSON.stringify(fullForBaseline[k])); }); persistSynced(); }
             sentDeletedNotes.forEach(id => __deletedNotes.delete(id));
             sentDeletedBuckets.forEach(t => __deletedBuckets.delete(t));
+            sentDeletedEvents.forEach(id => __deletedEvents.delete(id));
             sentChatIds.forEach(id => { __pendingChatIds.delete(id); __failedChatIds.delete(id); });
           } catch (e) {
             req.sending = false;
@@ -3311,7 +3476,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     function buildCloudSignature(cloud) {
       const memSig = (cloud.memories || []).map(m => `${m.id}|${m.date}|${(m.desc || '').length}|${(m.media || []).length}`).sort().join(',');
       const notesSig = (cloud.notes || []).map(n => `${n.id || n.date}|${n.sender}|${(n.text || '').length}|${n.edited ? 1 : 0}`).join(',');
-      const bucketsSig = (cloud.buckets || []).map(b => `${b.text}|${b.done}`).join(',');
+      const bucketsSig = (cloud.buckets || []).map(b => `${b.text}|${b.done}`).join(',') + '#' + (cloud.events || []).map(e => `${e.id}|${e.date}|${(e.title || '').length}`).join(',');
       const chatSig = (cloud.chatMessages || []).map(c => `${c.id}|${(c.text || '').length}`).join(',');
       return [cloud.mainPhoto ? '1' : '0', cloud.mood || '', cloud.anniversary || '', memSig, notesSig, bucketsSig, chatSig, JSON.stringify(cloud.qnaAnswers || {}), cloud.qnaIndex || ''].join('::');
     }
@@ -3458,11 +3623,13 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
             if (nextMem !== JSON.stringify(GLOBAL_MEMORIES)) {
               GLOBAL_MEMORIES = cloud.memories;
               renderMemories();
+              renderCalendar(); // 추억 날짜 표시
               saveMemoriesCache(); // 다음에 사이트를 열었을 때 0초 표시를 위한 로컬 캐시
             }
           }
 
           if (cloud.notes && changed("couple_notes", cloud.notes)) loadNotes();
+          if (Array.isArray(cloud.events) && changed("couple_events", cloud.events)) renderCalendar();
 
           let chatChanged = false;
           let chatExtras = [];
@@ -3526,6 +3693,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         if (e.key === 'couple_chat') { loadChatMessages(); renderChatMessages(); }
         else if (e.key === 'couple_chat_read') { loadChatReadReceipts(); renderChatMessages(); }
         else if (e.key === 'couple_notes') loadNotes();
+        else if (e.key === 'couple_events') renderCalendar();
         else if (e.key === 'couple_buckets') renderBuckets();
         else if (e.key === 'couple_mood') loadMood();
         else if (e.key.indexOf('qna_') === 0) { const qi = parseInt(localStorage.getItem('qna_index') || '0', 10); if (!isNaN(qi) && qi >= 0 && qi < QUESTIONS.length) currentQIndex = qi; renderQnA(); }
@@ -3764,6 +3932,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
       const upcoming = milestones.filter(m => msDate(m).getTime() >= now.getTime())
         .sort((x, y) => msDate(x) - msDate(y)).slice(0, 8);
 
+      setTimeout(() => { if (typeof renderCalendar === 'function') renderCalendar(); }, 0);
       document.getElementById("anniversaryGrid").innerHTML = upcoming.map(m => {
         const targetDate = msDate(m);
 
@@ -3783,6 +3952,127 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           </div>
         `;
       }).join('');
+    }
+
+    // =====================================================================
+    // 우리 캘린더: 두 사람이 같이 쓰는 일정 + 기념일(♥) + 추억(사진) 날짜 표시
+    // 일정은 couple_events 에 [{id, date:'YYYY-MM-DD', time:'HH:MM', title, by, createdAt, updatedAt}]
+    // =====================================================================
+    let calYear = null, calMonth = null, calSelected = null;
+    function calYmd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function getCalEvents() { try { const v = JSON.parse(localStorage.getItem('couple_events') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+    function setCalEvents(list) { localStorage.setItem('couple_events', JSON.stringify(list)); }
+    function calAnniversaries(fromYmd, toYmd) {
+      const out = {};
+      const sd = getStoredDate(); if (!sd) return out;
+      const [y, m, d] = sd.split('-').map(Number);
+      const add = (dt, label) => { const k = calYmd(dt); if (k >= fromYmd && k <= toYmd) (out[k] = out[k] || []).push(label); };
+      add(new Date(y, m - 1, d), '처음 만난 날');
+      for (let n = 100; n <= 20000; n += 100) add(new Date(y, m - 1, d + n - 1), n + '일');
+      for (let n = 1; n <= 60; n++) add(new Date(y + n, m - 1, d), n + '주년');
+      return out;
+    }
+    function calMemories() {
+      const out = {};
+      (typeof GLOBAL_MEMORIES !== 'undefined' ? GLOBAL_MEMORIES : []).forEach(it => {
+        const mm = String(it.date || '').match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+        if (!mm) return;
+        const k = mm[1] + '-' + mm[2].padStart(2, '0') + '-' + mm[3].padStart(2, '0');
+        (out[k] = out[k] || []).push(it);
+      });
+      return out;
+    }
+    function renderCalendar() {
+      const grid = document.getElementById('calGrid'); if (!grid) return;
+      const today = new Date();
+      if (calYear === null) { calYear = today.getFullYear(); calMonth = today.getMonth(); }
+      if (!calSelected) calSelected = calYmd(today);
+      document.getElementById('calTitle').textContent = calYear + '년 ' + (calMonth + 1) + '월';
+      const first = new Date(calYear, calMonth, 1);
+      const offset = first.getDay();
+      const days = new Date(calYear, calMonth + 1, 0).getDate();
+      const cells = Math.ceil((offset + days) / 7) * 7;
+      const gridStart = new Date(calYear, calMonth, 1 - offset);
+      const fromK = calYmd(gridStart), toK = calYmd(new Date(calYear, calMonth, cells - offset));
+      const ann = calAnniversaries(fromK, toK), mem = calMemories();
+      const evs = {}; getCalEvents().forEach(e => { if (e && e.date) (evs[e.date] = evs[e.date] || []).push(e); });
+      const todayK = calYmd(today);
+      let html = '';
+      for (let i = 0; i < cells; i++) {
+        const dt = new Date(calYear, calMonth, 1 - offset + i), k = calYmd(dt);
+        const labels = [];
+        (ann[k] || []).forEach(a => labels.push('<span class="cal-lb ann">♥ ' + escapeHtml(a) + '</span>'));
+        (evs[k] || []).sort((a, b) => String(a.time || '99').localeCompare(String(b.time || '99'))).forEach(e => labels.push('<span class="cal-lb ev ' + (e.by === 'Her' ? 'her' : 'him') + '">' + escapeHtml(e.title || '') + '</span>'));
+        const shown = labels.slice(0, 2).join('') + (labels.length > 2 ? '<span class="cal-more">+' + (labels.length - 2) + '</span>' : '');
+        const cls = ['cal-cell', dt.getMonth() !== calMonth ? 'other' : '', k === todayK ? 'today' : '', k === calSelected ? 'sel' : '', dt.getDay() === 0 ? 'sun' : '', dt.getDay() === 6 ? 'sat' : ''].filter(Boolean).join(' ');
+        html += '<button type="button" class="' + cls + '" onclick="calSelect(\'' + k + '\')"><span class="cal-num">' + dt.getDate() + (mem[k] ? '<i class="cal-photo" title="추억"></i>' : '') + '</span>' + shown + '</button>';
+      }
+      grid.innerHTML = html;
+      renderCalDay(ann, mem);
+    }
+    function renderCalDay(ann, mem) {
+      const k = calSelected; if (!k) return;
+      const [y, m, d] = k.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      document.getElementById('calDayTitle').textContent = m + '월 ' + d + '일 ' + '일월화수목금토'[dt.getDay()] + '요일';
+      ann = ann || calAnniversaries(k, k); mem = mem || calMemories();
+      const items = [];
+      (ann[k] || []).forEach(a => items.push('<div class="cal-item ann"><span class="cal-item-mark">♥</span><span class="cal-item-text">' + escapeHtml(a) + '</span></div>'));
+      getCalEvents().filter(e => e && e.date === k).sort((a, b) => String(a.time || '99').localeCompare(String(b.time || '99'))).forEach(e => {
+        items.push('<div class="cal-item ev ' + (e.by === 'Her' ? 'her' : 'him') + '"><span class="cal-item-mark"></span>' +
+          (e.time ? '<span class="cal-item-time">' + escapeHtml(e.time) + '</span>' : '') +
+          '<span class="cal-item-text">' + escapeHtml(e.title || '') + '</span>' +
+          '<button type="button" class="cal-item-btn" onclick="editCalEvent(\'' + e.id + '\')" aria-label="수정">✎</button>' +
+          '<button type="button" class="cal-item-btn" onclick="deleteCalEvent(\'' + e.id + '\')" aria-label="삭제">✕</button></div>');
+      });
+      (mem[k] || []).forEach(it => items.push('<div class="cal-item mem" onclick="openLightbox(\'' + it.id + '\')"><span class="cal-item-mark">📷</span><span class="cal-item-text">' + escapeHtml(it.title || '추억') + '</span><span class="cal-item-go">›</span></div>'));
+      document.getElementById('calDayList').innerHTML = items.join('') || '<div class="cal-empty">일정이 없어요</div>';
+    }
+    function calSelect(k) {
+      const [y, m] = k.split('-').map(Number);
+      calSelected = k;
+      if (y !== calYear || m - 1 !== calMonth) { calYear = y; calMonth = m - 1; }
+      renderCalendar();
+    }
+    function calMove(delta) {
+      if (calYear === null) renderCalendar();
+      const d = new Date(calYear, calMonth + delta, 1);
+      calYear = d.getFullYear(); calMonth = d.getMonth();
+      // 선택한 날도 그 달로 (같은 날짜, 없으면 말일)
+      const sd = calSelected ? Number(calSelected.split('-')[2]) : 1;
+      calSelected = calYmd(new Date(calYear, calMonth, Math.min(sd, new Date(calYear, calMonth + 1, 0).getDate())));
+      renderCalendar();
+    }
+    function calToday() { calYear = null; calSelected = null; renderCalendar(); }
+    function addCalEvent() {
+      const input = document.getElementById('calEventInput'), timeEl = document.getElementById('calEventTime');
+      const title = input.value.trim().slice(0, 80);
+      if (!title) { input.focus(); return; }
+      if (!calSelected) calSelected = calYmd(new Date());
+      registerLocalAction();
+      const ev = { id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: calSelected, time: timeEl.value || '', title: title, by: currentSender, createdAt: Date.now() };
+      const list = getCalEvents(); list.push(ev); setCalEvents(list);
+      input.value = ''; timeEl.value = '';
+      renderCalendar();
+      syncToCloud(null, 'event_added', { eventTitle: title, eventDate: ev.date, eventTime: ev.time });
+      showToast('일정을 추가했어요.', '📅', 1800);
+    }
+    function editCalEvent(id) {
+      const list = getCalEvents(); const ev = list.find(e => e.id === id); if (!ev) return;
+      const next = prompt('일정 고치기', ev.title || '');
+      if (next === null) return;
+      const t = next.trim().slice(0, 80);
+      if (!t) { deleteCalEvent(id); return; }
+      registerLocalAction();
+      ev.title = t; ev.updatedAt = Date.now();
+      setCalEvents(list); renderCalendar(); syncToCloud(null);
+    }
+    function deleteCalEvent(id) {
+      if (!confirm('이 일정을 삭제할까요?')) return;
+      registerLocalAction();
+      __deletedEvents.add(id);
+      setCalEvents(getCalEvents().filter(e => e.id !== id));
+      renderCalendar(); syncToCloud(null);
     }
 
     function openDateModal() {
@@ -5144,7 +5434,10 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
         document.getElementById('notesList').innerHTML = `<div style="text-align: center; padding: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">아직 남겨진 쪽지가 없습니다. 첫 쪽지를 남겨보세요!</div>`;
         return;
       }
-      document.getElementById('notesList').innerHTML = saved.map(item => `
+      const NOTE_PREVIEW = 5;
+      const hiddenNotes = window.__notesShowAll ? 0 : Math.max(0, saved.length - NOTE_PREVIEW);
+      const visibleNotes = hiddenNotes ? saved.slice(0, NOTE_PREVIEW) : saved;
+      document.getElementById('notesList').innerHTML = visibleNotes.map(item => `
         <div class="note-item ${item.sender === 'Her' ? '' : 'blue'}">
           <div class="note-item-meta">
             <div class="note-item-meta-left">
@@ -5159,7 +5452,8 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
           </div>
           <div class="note-item-text">${escapeHtml(item.text)}</div>
         </div>
-      `).join('');
+      `).join('') + (hiddenNotes ? `<button type="button" class="notes-more-btn" onclick="window.__notesShowAll=true; loadNotes();">이전 쪽지 ${hiddenNotes}개 더 보기</button>`
+        : (window.__notesShowAll && saved.length > NOTE_PREVIEW ? `<button type="button" class="notes-more-btn" onclick="window.__notesShowAll=false; loadNotes(); scrollToSection('notes');">접기</button>` : ''));
     }
     function saveNote() {
       const input = document.getElementById('noteInput');
@@ -5554,7 +5848,7 @@ html:not([data-theme="win98"]) .bucket-item { background:var(--bg-glass); paddin
     setInterval(updateTimer, 1000);
     updateTimer();
     renderAnniversaries();
-    loadMood();
+    renderCalendar();
     renderQnA();
     renderBuckets();
     loadNotes();
