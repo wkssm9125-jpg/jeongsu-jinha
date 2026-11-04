@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611042124" />
+  <meta name="jj-version" content="202611042135" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2422,7 +2422,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     <div class="calendar-page">
     <section class="app-section" id="cycle">
       <div class="section-header sec-link">
-        <h2 class="section-title">🌙 진하의 주기</h2>
+        <h2 class="section-title">🌙 정수의 주기</h2>
         <button type="button" class="sec-more" onclick="openCycleSettings()">설정 ›</button>
       </div>
       <div class="cyc-box" id="cycleBox"></div>
@@ -4698,14 +4698,14 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       document.getElementById('calDayList').innerHTML = cycleDayPanel(k) + (items.join('') || '<div class="cal-empty">일정이 없어요</div>');
     }
     // =====================================================================
-    // 🌙 진하의 주기 (해피문데이 필수 기능)
+    // 🌙 정수의 주기 (해피문데이 필수 기능) — 주기를 기록하는 사람은 정수(내부 id Him)
     //  · 생리 시작/끝 기록 → 평균 주기·기간을 배워서 다음 생리·가임기·배란일 예측
     //  · 날짜별 몸 기록: 월경량·월경통·월경용품·증상·기분·분비물·부정출혈·약/영양제·몸무게·기초체온·성생활·병원 진료·메모
     //  · 리포트: 평균 주기/기간, 규칙성, 지난 주기 목록, 자주 나온 증상, 몸무게 변화, 병원 기록
     //  · 설정: 기본 주기/기간, 알림(7·3·1일 전, 가임기 시작, 배란일), 상대에게도 알림, 임신 모드, 피임약 알림, 성생활 숨김(이 기기), 캘린더 표시(이 기기)
     //  저장: couple_periods [{id,start,end}], couple_cycle_logs {날짜: {...}}, couple_cycle_settings {...}
     // =====================================================================
-    const CYCLE_OWNER = 'Her';
+    const CYCLE_OWNER = 'Him';
     const CYC_DEFAULTS = { cycleLen: 28, periodLen: 5, notifyBefore: [3, 1], notifyFertile: true, notifyOvulation: true, notifyPartner: true, notifyStart: true, pregnancy: false, pillOn: false, pillTime: '21:00' };
     const CYC_OPTS = {
       flow: ['없음', '적음', '보통', '많음'],
@@ -4943,7 +4943,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       document.getElementById('cycleSettingsBody').innerHTML =
         '<p class="modal-desc">기록이 2번 이상 쌓이면 실제 기록으로 계산하고, 그 전에는 아래 기본값을 써요.</p>' +
         sec('기본 주기 · 생리 기간', '<div class="cy-nums"><label>주기 <input type="number" id="cySetCycle" min="15" max="60" value="' + st.cycleLen + '"> 일</label><label>기간 <input type="number" id="cySetPeriod" min="1" max="14" value="' + st.periodLen + '"> 일</label></div>') +
-        sec('🔔 알림 (두 사람 폰으로)', '<div class="cy-checks">' + chk('cySetN7', nb.has(7), '생리 7일 전') + chk('cySetN3', nb.has(3), '생리 3일 전') + chk('cySetN1', nb.has(1), '생리 하루 전') + chk('cySetFert', st.notifyFertile, '가임기 시작') + chk('cySetOv', st.notifyOvulation, '배란 예정일') + chk('cySetStart', st.notifyStart, '생리 시작을 기록하면 상대에게 알림') + chk('cySetPartner', st.notifyPartner, '예정일 알림을 정수에게도 보내기') + '</div>') +
+        sec('🔔 알림 (두 사람 폰으로)', '<div class="cy-checks">' + chk('cySetN7', nb.has(7), '생리 7일 전') + chk('cySetN3', nb.has(3), '생리 3일 전') + chk('cySetN1', nb.has(1), '생리 하루 전') + chk('cySetFert', st.notifyFertile, '가임기 시작') + chk('cySetOv', st.notifyOvulation, '배란 예정일') + chk('cySetStart', st.notifyStart, '생리 시작을 기록하면 상대에게 알림') + chk('cySetPartner', st.notifyPartner, '예정일 알림을 진하에게도 보내기') + '</div>') +
         sec('💊 피임약', chk('cySetPill', st.pillOn, '피임약 복용 체크 · 알림') + '<div class="cy-nums"><label>알림 시간 <input type="time" id="cySetPillTime" value="' + escapeHtml(st.pillTime || '21:00') + '"></label></div>') +
         sec('🤰 임신 모드', chk('cySetPreg', st.pregnancy, '생리 예측과 알림을 잠시 멈추기')) +
         sec('🔒 이 기기에서만', chk('cySetShow', cycleVisible(), '캘린더에 주기 표시') + chk('cySetHideLove', loveHidden(), '성생활 기록 숨기기'));
