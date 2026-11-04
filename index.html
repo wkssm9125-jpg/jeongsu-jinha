@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611042025" />
+  <meta name="jj-version" content="202611042048" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1990,6 +1990,23 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
 .note-box > .note-textarea { overflow-y:hidden; scrollbar-width:none; }
 .note-box > .note-editor-actions { grid-column:2; flex-direction:column; gap:6px; }
 .note-box > .note-editor-actions .btn-save-note, .note-box > .note-editor-actions .btn-cancel-edit-note { min-height:44px; padding:0 14px; white-space:nowrap; font-size:13px; }
+
+/* =========================================================================
+   38. 접기/펼치기 · 지난 기념일
+   ========================================================================= */
+.section-header.foldable { display:flex; align-items:center; gap:6px; }
+.section-header.foldable > .section-title { flex:1; min-width:0; user-select:none; -webkit-user-select:none; }
+.fold-btn { width:34px; height:34px; flex-shrink:0; background:var(--bg-glass); border:none; color:var(--text-secondary); font-size:20px; line-height:1; cursor:pointer; transition:transform .2s ease; }
+section.app-section.folded .fold-btn { transform:rotate(-90deg); }
+section.app-section.folded > :not(.section-header) { display:none !important; }
+section.app-section.folded > .section-header { margin-bottom:0; }
+section.app-section.folded .cal-nav, section.app-section.folded .sec-more { display:none; }
+#view-calendar .anni-passed-wrap { display:flex; flex-direction:column; gap:4px; }
+#view-calendar .anniversary-card.passed { opacity:.6; }
+#view-calendar .anniversary-card.passed .anni-dday { color:var(--text-tertiary) !important; text-shadow:none !important; font-weight:600; font-size:12px; }
+.anni-more { width:100%; flex-shrink:0; }
+[data-theme="win98"] .fold-btn { color:#fff; text-shadow:1px 1px 0 #000; }
+[data-theme="tron"] .fold-btn { color:var(--tron-cyan); text-shadow:0 0 6px var(--tron-cyan); }
   </style>
 </head>
 <body>
@@ -2237,7 +2254,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     <section class="app-section" id="anniversaries">
       <div class="section-header">
         <div class="section-eyebrow">Milestones</div>
-        <h2 class="section-title">다가오는 기념일</h2>
+        <h2 class="section-title">기념일</h2>
         <p class="section-desc">시작한 날짜를 기준으로 주요 일수와 매년 주년이 정확하게 계산됩니다.</p>
       </div>
       <div class="anniversary-grid" id="anniversaryGrid"></div>
@@ -2376,12 +2393,6 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
         <div class="nav-settings-item" onclick="openDateModal()">
           <span>📅 사귄 날짜</span>
           <span class="nav-settings-item-state" id="navSettingsDDay">D+0</span>
-        </div>
-        <div class="nav-settings-item" onclick="scrollToSection('notes')">
-          <span>💌 쪽지함</span>
-        </div>
-        <div class="nav-settings-item" onclick="scrollToSection('bucket')">
-          <span>🌱 버킷리스트</span>
         </div>
       </div>
 
@@ -4304,6 +4315,18 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       const msDate = m => m.type === 'year' ? new Date(sYear + m.value, sMonth - 1, sDay, 0, 0, 0) : new Date(sYear, sMonth - 1, sDay + m.value - 1, 0, 0, 0);
       const upcoming = milestones.filter(m => msDate(m).getTime() >= now.getTime())
         .sort((x, y) => msDate(x) - msDate(y)).slice(0, 8);
+      // 지난 기념일 (최근 것부터) — 처음엔 숨겨두고 버튼으로 펼친다
+      const passedList = [{ type: 'start', label: '처음 만난 날', value: 0 }].concat(milestones.filter(m => msDate(m).getTime() < now.getTime()))
+        .filter(m => m.type !== 'start' || start.getTime() <= now.getTime())
+        .sort((x, y) => (y.type === 'start' ? start : msDate(y)) - (x.type === 'start' ? start : msDate(x)));
+      const passedHtml = passedList.map(m => {
+        const d = m.type === 'start' ? start : msDate(m);
+        const ago = Math.round((now.getTime() - d.getTime()) / 86400000);
+        return '<div class="anniversary-card passed"><div class="anni-info"><h4>' + m.label + '</h4><p>' + d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0') + '</p></div><div class="anni-dday">' + (ago === 0 ? '오늘' : ago + '일 전') + '</div></div>';
+      }).join('');
+      const passedBlock = passedList.length ? (window.__showPassedAnn
+        ? '<div class="anni-passed-wrap">' + passedHtml + '</div><button type="button" class="notes-more-btn anni-more" onclick="window.__showPassedAnn=false; renderAnniversaries();">지난 기념일 접기</button>'
+        : '<button type="button" class="notes-more-btn anni-more" onclick="window.__showPassedAnn=true; renderAnniversaries();">지난 기념일 ' + passedList.length + '개 보기</button>') : '';
 
       setTimeout(() => { if (typeof renderCalendar === 'function') renderCalendar(); }, 0);
       document.getElementById("anniversaryGrid").innerHTML = upcoming.map(m => {
@@ -4324,7 +4347,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
             <div class="anni-dday">${ddayText}</div>
           </div>
         `;
-      }).join('');
+      }).join('') + passedBlock;
     }
 
     // =====================================================================
@@ -4469,6 +4492,33 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       __deletedEvents.add(id);
       setCalEvents(getCalEvents().filter(e => e.id !== id));
       renderCalendar(); syncToCloud(null);
+    }
+
+    // 접기/펼치기: 각 칸(섹션) 제목 줄 오른쪽 ▾ 버튼 또는 제목을 누르면 접힌다. 기기마다 기억한다.
+    const FOLD_KEY = 'jj_folded';
+    function getFolded() { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; } catch (e) { return {}; } }
+    function toggleFold(id, force) {
+      const sec = document.getElementById(id); if (!sec) return;
+      const folded = getFolded();
+      const next = typeof force === 'boolean' ? force : !sec.classList.contains('folded');
+      sec.classList.toggle('folded', next);
+      const btn = sec.querySelector('.fold-btn'); if (btn) { btn.setAttribute('aria-expanded', String(!next)); btn.title = next ? '펼치기' : '접기'; }
+      if (next) folded[id] = 1; else delete folded[id];
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify(folded)); } catch (e) {}
+    }
+    function setupFolding() {
+      const folded = getFolded();
+      document.querySelectorAll('section.app-section[id]').forEach(sec => {
+        const head = sec.querySelector(':scope > .section-header'); if (!head || head.querySelector('.fold-btn')) return;
+        head.classList.add('foldable');
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'fold-btn'; btn.setAttribute('aria-label', '접기/펼치기'); btn.textContent = '▾';
+        btn.addEventListener('click', (e) => { e.stopPropagation(); toggleFold(sec.id); });
+        head.appendChild(btn);
+        const title = head.querySelector('.section-title');
+        if (title) { title.style.cursor = 'pointer'; title.addEventListener('click', () => toggleFold(sec.id)); }
+        if (folded[sec.id]) toggleFold(sec.id, true); else btn.setAttribute('aria-expanded', 'true');
+      });
     }
 
     function openDateModal() {
@@ -6254,6 +6304,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     updateTimer();
     renderAnniversaries();
     renderCalendar();
+    setupFolding();
     renderQnA();
     renderBuckets();
     loadNotes();
