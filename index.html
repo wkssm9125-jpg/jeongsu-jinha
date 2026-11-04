@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611042048" />
+  <meta name="jj-version" content="202611042052" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2007,6 +2007,120 @@ section.app-section.folded .cal-nav, section.app-section.folded .sec-more { disp
 .anni-more { width:100%; flex-shrink:0; }
 [data-theme="win98"] .fold-btn { color:#fff; text-shadow:1px 1px 0 #000; }
 [data-theme="tron"] .fold-btn { color:var(--tron-cyan); text-shadow:0 0 6px var(--tron-cyan); }
+
+/* =========================================================================
+   39. 한눈에 많이 보이게 (여백·줄 높이 줄이기 + 넓은 화면은 여러 칸으로)
+   ========================================================================= */
+:root { --pad-x:8px; --tabbar-h:calc(50px + env(safe-area-inset-bottom,0px)); }
+/* 상단바 · 하단 탭바 얇게 */
+nav.apple-nav { min-height:44px; }
+html:not(.x) nav.apple-nav { padding-bottom:4px; }
+.tabbar { padding:3px 4px calc(3px + env(safe-area-inset-bottom,0px)); }
+.tabbar-btn { min-height:44px; gap:2px; }
+.tabbar-icon { font-size:17px; }
+.tabbar-label { font-size:10px; }
+/* 디데이 */
+section.hero { padding:6px var(--pad-x) 0; }
+.hero-inner { padding:10px 12px 10px !important; }
+html:not([data-hero="orbit"]) .dday-big .dday-num { font-size:44px; }
+html:not([data-hero="orbit"]) .dday-big .dday-unit { font-size:15px; }
+.couple-photo-wrapper { width:44px; height:44px; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .dday-container { margin-top:6px; }
+html:not([data-hero="orbit"]):not([data-hero="ticker"]) .hero-couple-row { margin-top:6px; }
+.dday-container { padding:4px 10px; }
+/* 칸(섹션) */
+section.app-section { padding-top:10px; }
+.section-header { margin-bottom:5px; min-height:28px; }
+.section-title { font-size:14.5px; }
+.fold-btn { width:28px; height:28px; font-size:17px; }
+.sec-more { padding:4px 0 4px 8px; font-size:12px; }
+.qna-box, .bucket-card, .note-box, .up-box, .cal-box { padding:6px !important; }
+html .anniversary-grid { padding:6px; }
+/* 다가오는 날 */
+.up-box { gap:3px; }
+.up-row, .up-add { min-height:38px; padding:3px 8px; gap:10px; }
+.up-date b { font-size:13px; } .up-title { font-size:13.5px; }
+/* 문답 */
+.qna-question { margin-bottom:6px; padding:2px 4px 0; }
+.qna-question-title { font-size:13.5px; line-height:1.4; }
+.btn-refresh-q { width:30px; height:30px; }
+.qna-answers-grid { gap:4px; }
+.qna-person-card { padding:6px 9px; gap:3px; }
+.qna-text { font-size:13px; line-height:1.45; }
+.qna-input-wrap .qna-input, .qna-input-wrap .btn-save-qna { min-height:36px; }
+html:not([data-theme="win98"]) .qna-input { padding:6px 10px !important; }
+/* 쪽지 */
+.note-sender-line { margin-bottom:4px; padding:0 2px; }
+.note-box > .note-textarea { height:40px; min-height:40px; padding:7px 10px; }
+.note-box > .note-editor-actions .btn-save-note, .note-box > .note-editor-actions .btn-cancel-edit-note { min-height:40px; }
+.notes-list { margin-top:6px; gap:4px; }
+.note-item { padding:5px 9px 6px; }
+.note-item-meta { margin-bottom:0; font-size:10.5px; }
+.note-item-actions button { min-width:30px; min-height:26px; font-size:12px; }
+.note-item-text { font-size:13px; line-height:1.45; }
+.notes-more-btn { min-height:32px; font-size:12px; }
+/* 버킷 */
+.bucket-progress-wrapper { margin-bottom:3px; font-size:11px; padding:0 2px; }
+.progress-bar-bg { margin-bottom:6px; height:4px; }
+.bucket-input-row { margin-bottom:5px; gap:6px; }
+.bucket-input, .btn-add-bucket { min-height:36px; }
+.bucket-item, .bucket-item-left { min-height:34px; }
+.btn-del-bucket { min-width:34px; min-height:34px; font-size:13px; }
+.bucket-title { font-size:13.5px; }
+.bucket-checkbox { width:19px; height:19px; }
+html:not([data-theme="win98"]) .bucket-list { gap:3px; }
+/* 캘린더 */
+.cal-box { padding:4px 2px 6px !important; }
+.cal-cell { min-height:44px; }
+#view-calendar .cal-cell { min-height:52px; }
+.cal-day { margin-top:4px; padding:4px 4px 0; }
+.cal-item { min-height:32px; font-size:13px; }
+.cal-input, .cal-time, .cal-add-btn { min-height:36px; }
+#view-calendar .anniversary-card { padding:6px 10px !important; }
+/* 추억: 휴대폰에서도 3칸 */
+.memories-container { padding:4px var(--pad-x) 16px; }
+.memories-header { margin-bottom:8px; }
+.memories-header .section-title { font-size:19px; }
+.memories-top-action { margin-top:8px; }
+.btn-add-memory { min-height:40px; }
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memories-grid { grid-template-columns:repeat(3, minmax(0,1fr)); gap:5px; }
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-body { padding:5px 6px 6px; gap:1px; }
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-title { font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-desc,
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer .drive-link-badge { display:none !important; }
+html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer { font-size:10px; }
+/* 설정 */
+.nav-settings-item { min-height:46px; padding:0 12px; font-size:13.5px; }
+.settings-group-label { padding:0 4px 5px; }
+
+/* 태블릿(700px~): 홈과 캘린더를 2칸으로 */
+@media (min-width:700px) and (max-width:1023px) {
+  :root { --pad-x:12px; }
+  section.hero, section.app-section, .memories-container, .chat-container, .settings-container { max-width:none !important; }
+  #view-home.active { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; grid-auto-flow:row dense; padding:0 var(--pad-x); }
+  #view-home.active > section.hero { grid-column:1 / -1; padding-left:0; padding-right:0; }
+  #view-home.active section.app-section { padding-left:0; padding-right:0; margin:0; }
+  #view-home.active #upcoming, #view-home.active #bucket { grid-column:1; }
+  #view-home.active #qna, #view-home.active #notes { grid-column:2; }
+  #view-calendar.active .calendar-page { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); column-gap:10px; padding:0 var(--pad-x); }
+  #view-calendar.active section.app-section { padding-left:0; padding-right:0; margin:0; }
+  html:not([data-album="mosaic"]):not([data-album="timeline"]) .memories-grid { grid-template-columns:repeat(4, minmax(0,1fr)); }
+}
+/* PC: 화면 폭을 다 쓰고, 아주 넓으면 3칸 */
+@media (min-width:1024px) {
+  #view-home.active, #view-calendar.active .calendar-page { max-width:none !important; padding:0 20px !important; column-gap:14px !important; }
+  section.hero { max-width:none !important; padding:12px 0 0 !important; }
+  .memories-container, .chat-container, .settings-container { max-width:none !important; padding-left:20px !important; padding-right:20px !important; }
+  html:not([data-album="mosaic"]):not([data-album="timeline"]) .memories-grid { grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:8px; }
+  .memories-top-action .btn-add-memory { flex:0 1 320px; }
+}
+@media (min-width:1400px) {
+  #view-home.active { grid-template-columns:repeat(3, minmax(0,1fr)) !important; }
+  #view-home.active #upcoming { grid-column:1; }
+  #view-home.active #qna { grid-column:2; }
+  #view-home.active #notes { grid-column:3; grid-row:span 3; }
+  #view-home.active #bucket { grid-column:1 / span 2; }
+}
   </style>
 </head>
 <body>
