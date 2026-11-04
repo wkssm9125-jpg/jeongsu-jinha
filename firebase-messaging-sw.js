@@ -5,21 +5,12 @@
 // 반드시 index.html과 같은 위치(사이트 루트)에 "firebase-messaging-sw.js" 라는 이름 그대로 올려야 한다.
 // ==============================================================================
 
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+// (2026-11-04) Firebase 알림 모듈은 더 이상 여기서 쓰지 않는다.
+//  - Firebase 기본 동작: 사이트 화면이 열려 있으면 시스템 알림을 띄우지 않고 화면 쪽으로만 넘긴다
+//    → 화면에서 소리를 한 번 더 내서 알림이 두 번 울렸고, 채팅방을 보고 있어도 울렸다.
+//    → 게다가 아이폰은 "푸시를 받고도 알림을 안 띄우는" 일이 3번 생기면 그 앱의 푸시를 아예 끊어 버린다.
+//  - 지금: 서버가 "지금 화면을 보고 있는 기기"에는 푸시를 보내지 않고, 여기 도착한 푸시는 항상 알림 1개로 띄운다.
 
-// 아래 값들은 index.html 안의 firebaseConfig와 반드시 똑같아야 한다.
-// (index.html에서 채워 넣은 값을 그대로 여기에도 복사해 붙여넣기)
-firebase.initializeApp({
-  apiKey: "AIzaSyC3dZzHlFkRECsrZrHnMv_5wrlqS5CbdIo",
-  authDomain: "js-jh-2d166.firebaseapp.com",
-  projectId: "js-jh-2d166",
-  storageBucket: "js-jh-2d166.firebasestorage.app",
-  messagingSenderId: "144540756511",
-  appId: "1:144540756511:web:0b7971a04eca72499e432a"
-});
-
-const messaging = firebase.messaging();
 
 // ------------------------------------------------------------------
 // 알림 내역 저장소 (IndexedDB) — index.html의 것과 이름/구조가 반드시 똑같아야
@@ -52,26 +43,31 @@ async function savePushHistory(title, body, type, targetId) {
   } catch(e) {}
 }
 
-// 사이트가 닫혀 있거나 다른 탭을 보고 있을 때(백그라운드) 도착하는 알림을 처리한다.
-messaging.onBackgroundMessage((payload) => {
-  const notification = payload.notification || {};
-  const data = payload.data || {};
-  const title = notification.title || '💖 정수와진하';
-  const body = notification.body || '새로운 정보가 추가되었습니다. 확인해주세요!';
-  savePushHistory(title, body, data.type, data.targetId); // 사이트를 다시 열었을 때 "알림 내역"에서 볼 수 있도록 기록
-  // ⚠️ 알림 내용(notification)이 실린 메시지는 Firebase가 이미 알림을 띄운다.
-  //    예전엔 여기서 한 번 더 띄워서 알림이 두 개씩 왔다 → 내용이 없는(데이터만 있는) 메시지일 때만 직접 띄운다.
-  if (payload.notification) return;
-  const options = {
-    body: body,
-    // 알림마다 다른 태그를 써서 쌓이게 하고, 혹시 같은 태그로 교체되더라도 다시 울리도록(renotify) 한다.
-    // (안드로이드는 같은 태그의 알림이 교체될 때 renotify가 없으면 소리·진동 없이 조용히 바뀐다)
-    tag: 'jeongsu-jinha-' + Date.now(),
-    renotify: true,
-    vibrate: [180, 80, 180],
-    data: { url: (payload.fcmOptions && payload.fcmOptions.link) || (payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || '/', type: data.type || '', targetId: data.targetId || '' }
-  };
-  return self.registration.showNotification(title, options);
+// 푸시 도착 → 무조건 알림 하나를 띄운다 (아이폰 규칙). 열려 있는 화면에는 "알림 내역 갱신"만 알려 준다.
+self.addEventListener('push', (event) => {
+  let p = {};
+  try { p = event.data ? event.data.json() : {}; } catch (e) { try { p = { notification: { body: event.data.text() } }; } catch (e2) {} }
+  const n = p.notification || {};
+  const d = p.data || {};
+  const title = n.title || '💖 정수와진하';
+  const body = n.body || '새로운 소식이 있어요.';
+  const link = (p.fcmOptions && p.fcmOptions.link) || n.click_action || './';
+  event.waitUntil((async () => {
+    try { await savePushHistory(title, body, d.type, d.targetId); } catch (e) {}
+    try {
+      const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      wins.forEach(c => { try { c.postMessage({ jjPush: 1, title, body, type: d.type || '', targetId: d.targetId || '' }); } catch (e) {} });
+    } catch (e) {}
+    await self.registration.showNotification(title, {
+      body,
+      icon: n.icon || './icon-192.png',
+      badge: './icon-192.png',
+      tag: 'jj-' + Date.now(),
+      renotify: true,
+      vibrate: [180, 80, 180],
+      data: { url: link, type: d.type || '', targetId: d.targetId || '' }
+    });
+  })());
 });
 
 // 알림을 눌렀을 때 사이트를 열어주되, 그냥 홈으로 가는 게 아니라 이 알림이 알려준 항목(추억/쪽지/채팅 등)으로

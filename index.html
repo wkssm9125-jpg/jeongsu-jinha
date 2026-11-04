@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611042116" />
+  <meta name="jj-version" content="202611042124" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -3077,14 +3077,16 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       if (__ws && !force && (__ws.readyState === 0 || __ws.readyState === 1)) return;
       try { if (__ws) { __ws.onclose = null; __ws.close(); } } catch (e) {}
       clearTimeout(__wsTimer);
-      const url = API_BASE.replace(/^http/, 'ws') + '/ws?t=' + encodeURIComponent(AUTH_TOKEN);
+      const url = API_BASE.replace(/^http/, 'ws') + '/ws?t=' + encodeURIComponent(AUTH_TOKEN) + '&d=' + encodeURIComponent(pushDeviceId());
       let ws;
       try { ws = new WebSocket(url); } catch (e) { return; }
       __ws = ws;
       ws.onopen = () => {
         __wsRetry = 0;
         clearInterval(__wsPing);
-        __wsPing = setInterval(() => { try { ws.send('ping'); } catch (e) {} }, 30000);
+        // 화면을 보고 있는 동안 10초마다 신호 → 서버는 이 기기로 푸시를 보내지 않고, 화면 안 알림으로 한 번만 알려 준다
+        try { ws.send('hb'); } catch (e) {}
+        __wsPing = setInterval(() => { if (document.visibilityState === 'visible') { try { ws.send('hb'); } catch (e) {} } }, 10000);
         schedulePoll(); // 실시간이 붙었으니 확인 주기를 늘린다
       };
       ws.onmessage = (ev) => {
@@ -3112,7 +3114,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     }
     function disconnectRealtime() {
       clearTimeout(__wsTimer); clearInterval(__wsPing);
-      if (__ws) { const w = __ws; __ws = null; try { w.onclose = null; w.close(); } catch (e) {} }
+      if (__ws) { const w = __ws; __ws = null; try { if (w.readyState === 1) w.send('bye'); } catch (e) {} try { w.onclose = null; w.close(); } catch (e) {} }
     }
 
     async function gasFetch(url, opts) {
@@ -4101,12 +4103,19 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
         const recentlyActedLocally = (Date.now() - lastLocalActionTime) < NOTIFY_SUPPRESS_MS;
         if (!recentlyActedLocally) {
           showToast('새로운 정보가 추가되었습니다. 확인해주세요! 🔔', '🔔', 5000);
-          playNotificationSound();
+          if (!justCameBack()) playNotificationSound();
         }
       }
     }
 
     // 누가 무엇을 새로 남겼는지 구체적으로 알려준다 (채팅·쪽지는 보낸 사람이 기록돼 있어서 정확히 구분 가능)
+    let __lastAlertSig = '', __lastAlertAt = 0;
+    // 앱이 화면에 나온 시각: 그 전에(앱을 내려둔 동안) 온 소식은 이미 폰 알림으로 울렸으니 다시 소리 내지 않는다
+    let __visibleSince = Date.now();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') __visibleSince = Date.now(); });
+    const arrivedWhileAway = (t) => (t || 0) < __visibleSince - 1500;
+    const justCameBack = () => Date.now() - __visibleSince < 5000;
+    function alertOnce(sig) { const now = Date.now(); if (sig === __lastAlertSig && now - __lastAlertAt < 8000) return false; __lastAlertSig = sig; __lastAlertAt = now; return true; }
     function announcePartnerActivity(newChats, newNotes) {
       const partnerName = SENDER_NAMES[partnerOf(currentSender)] || '상대';
       const cut = (t) => { t = String(t || '').replace(/\s+/g, ' '); return t.length > 40 ? t.slice(0, 40) + '…' : t; };
@@ -4114,11 +4123,13 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       if (newChats.length && !viewingChat) {
         const lastMsg = newChats[newChats.length - 1];
         const more = newChats.length > 1 ? ` (+${newChats.length - 1})` : '';
+        if (!alertOnce('chat:' + lastMsg.id)) return;
         showToast(`${partnerName}: ${cut(lastMsg.text)}${more}`, '💬', 5000, () => switchPage('chat'));
-        playNotificationSound();
+        if (!(justCameBack() && newChats.every(m => arrivedWhileAway(m.time)))) playNotificationSound();
       } else if (newNotes.length) {
+        if (!alertOnce('note:' + newNotes[0].id)) return;
         showToast(`${partnerName}의 새 쪽지 · ${cut(newNotes[0].text)}`, '💌', 5000, () => scrollToSection('notes'));
-        playNotificationSound();
+        if (!justCameBack()) playNotificationSound();
       }
     }
 
@@ -6403,7 +6414,10 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     async function ensurePushRegistration(forceRegister) {
       // 기기 번호 방식으로 바뀐 뒤 처음 한 번은 꼭 다시 등록 (예전에 쌓인 중복 등록을 서버가 정리하도록)
       if (localStorage.getItem('push_reg_v2') !== '1') forceRegister = true;
-      if (localStorage.getItem('push_enabled') !== '1') return;
+      if (localStorage.getItem('push_enabled') !== '1') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && localStorage.getItem('fcm_token')) localStorage.setItem('push_enabled', '1');
+        else return;
+      }
       if (!isPushConfigured() || !GAS_WEB_APP_URL) return;
       if (!isLoggedIn()) return;
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -6439,14 +6453,15 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     }
 
     let __foregroundHandlerAttached = false;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (ev) => { if (ev.data && ev.data.jjPush) { try { updateSettingsBadge(); } catch (e) {} } });
+    }
     function attachForegroundPushHandler() {
       if (__foregroundHandlerAttached || !fcmMessagingInstance) return;
       __foregroundHandlerAttached = true;
       fcmMessagingInstance.onMessage((payload) => {
         const n = payload.notification || {};
         const d = payload.data || {};
-        showToast(n.body || n.title || '새로운 정보가 있습니다.', '🔔', 5000);
-        playNotificationSound();
         savePushHistory(n.title || '💖 정수와진하', n.body || '새로운 정보가 추가되었습니다. 확인해주세요!', d.type, d.targetId);
         updateSettingsBadge();
       });
