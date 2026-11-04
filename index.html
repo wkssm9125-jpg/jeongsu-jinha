@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611032306" />
+  <meta name="jj-version" content="202611042025" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1931,6 +1931,65 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
 .sd-roll > span { display:block; height:1.15em; line-height:1.15em; }
 .sd-roll.go { animation:sdSlide .38s cubic-bezier(.3,.7,.3,1) forwards; }
 @keyframes sdSlide { from { transform:translateY(0); } to { transform:translateY(-50%); } }
+
+/* =========================================================================
+   37. 화면 구성 정리 (비트윈·썸원 같은 커플 앱 참고)
+   홈 = 한눈에 보는 요약(디데이 · 다가오는 날 · 오늘의 문답 · 쪽지 · 버킷) / 캘린더는 별도 탭
+   ========================================================================= */
+.sec-link { display:flex; align-items:center; justify-content:space-between; }
+.sec-more { background:none; border:none; color:var(--text-tertiary); font-size:12.5px; font-weight:600; cursor:pointer; padding:6px 0 6px 10px; }
+.up-box { display:flex; flex-direction:column; gap:4px; background:var(--bg-card); border:1px solid var(--border-card); border-radius:var(--radius-large); padding:8px; }
+.up-row, .up-add { display:flex; align-items:center; gap:12px; width:100%; min-height:46px; padding:6px 10px; background:var(--bg-glass); border:none; color:var(--text-primary); text-align:left; cursor:pointer; font:inherit; }
+.up-date { display:flex; flex-direction:column; align-items:center; width:40px; flex-shrink:0; line-height:1.15; }
+.up-date b { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+.up-date i { font-style:normal; font-size:10.5px; color:var(--text-tertiary); }
+.up-title { flex:1; min-width:0; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.up-title em { font-style:normal; font-size:12px; color:var(--text-tertiary); font-weight:500; }
+.up-row.ann .up-title { color:var(--accent-pink); }
+.up-row.him { box-shadow:inset 3px 0 0 var(--chat-him); }
+.up-row.her { box-shadow:inset 3px 0 0 var(--chat-her); }
+.up-dday { font-size:13px; font-weight:800; color:var(--accent-pink); font-variant-numeric:tabular-nums; flex-shrink:0; }
+.up-add { justify-content:center; color:var(--text-tertiary); font-size:13px; font-weight:600; }
+[data-theme="win98"] .up-box { background:#c0c0c0 !important; box-shadow:var(--w98-raised); }
+[data-theme="win98"] .up-row, [data-theme="win98"] .up-add { background:#fff !important; color:#000; box-shadow:var(--w98-sunken); }
+[data-theme="win98"] .up-row.ann .up-title, [data-theme="win98"] .up-dday { color:#000080 !important; }
+[data-theme="tron"] .up-box { background:rgba(2,14,22,.78) !important; border:1px solid var(--tron-cyan-soft) !important; box-shadow:0 0 16px rgba(0,229,255,.16) !important; }
+[data-theme="tron"] .up-row { background:rgba(0,229,255,.06) !important; }
+[data-theme="tron"] .up-row.her { box-shadow:inset 2px 0 0 var(--tron-orange); }
+[data-theme="tron"] .up-row.him { box-shadow:inset 2px 0 0 var(--tron-cyan); }
+[data-theme="tron"] .up-dday, [data-theme="tron"] .up-row.ann .up-title { color:var(--tron-orange) !important; text-shadow:0 0 8px rgba(255,138,31,.7); }
+[data-theme="tron"] .up-date b { font-family:var(--tron-font); }
+
+/* 캘린더 탭: 캘린더를 크게, 기념일은 세로 목록 */
+.calendar-page { padding-bottom:16px; }
+#view-calendar #calendar { padding-top:8px; }
+#view-calendar .cal-cell { min-height:58px; }
+#view-calendar .anniversary-grid { flex-direction:column !important; overflow:visible !important; gap:4px !important; }
+#view-calendar .anniversary-card { flex-direction:row !important; align-items:center !important; justify-content:space-between; min-width:0 !important; padding:9px 12px !important; }
+#view-calendar .anni-info { display:flex; align-items:baseline; gap:10px; }
+
+/* 탭 5개: 글자 크기 맞춤 */
+.tabbar-btn .tabbar-label { white-space:nowrap; }
+
+@media (min-width:1024px) {
+  #view-home.active { grid-auto-flow:row dense; }
+  #view-home.active #upcoming { grid-column:1; }
+  #view-home.active #qna { grid-column:2; }
+  #view-home.active #notes { grid-column:2; }
+  #view-home.active #bucket { grid-column:1; }
+  #view-calendar.active .calendar-page { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); column-gap:24px; max-width:1100px; margin:0 auto; padding:0 32px; }
+  #view-calendar.active section.app-section { max-width:none; margin:0; padding:22px 0 0; }
+  #view-calendar .cal-cell { min-height:78px; }
+}
+
+/* 쪽지 쓰기: 입력칸 옆에 버튼 (누르면 입력칸이 커짐) */
+.note-box { display:grid !important; grid-template-columns:minmax(0,1fr) auto; column-gap:6px; align-items:start; }
+.note-box > .note-sender-line, .note-box > .notes-list { grid-column:1 / -1; }
+.note-box > .note-textarea { grid-column:1; height:44px; min-height:44px; margin-bottom:0; transition:height .2s ease; }
+.note-box > .note-textarea:focus, .note-box > .note-textarea.has-text { height:96px; overflow-y:auto; }
+.note-box > .note-textarea { overflow-y:hidden; scrollbar-width:none; }
+.note-box > .note-editor-actions { grid-column:2; flex-direction:column; gap:6px; }
+.note-box > .note-editor-actions .btn-save-note, .note-box > .note-editor-actions .btn-cancel-edit-note { min-height:44px; padding:0 14px; white-space:nowrap; font-size:13px; }
   </style>
 </head>
 <body>
@@ -1999,6 +2058,9 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     <button type="button" class="sidebar-nav-btn active" data-page="home" onclick="switchPage('home')">
       <span class="tabbar-icon">♥</span><span>홈</span>
     </button>
+    <button type="button" class="sidebar-nav-btn" data-page="calendar" onclick="switchPage('calendar')">
+      <span class="tabbar-icon">📅</span><span>캘린더</span>
+    </button>
     <button type="button" class="sidebar-nav-btn" data-page="memories" onclick="switchPage('memories')">
       <span class="tabbar-icon">▦</span><span>우리들의 추억</span>
     </button>
@@ -2055,37 +2117,14 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     </section>
 
 
-    <section class="app-section" id="anniversaries">
-      <div class="section-header">
-        <div class="section-eyebrow">Milestones</div>
-        <h2 class="section-title">다가오는 기념일</h2>
-        <p class="section-desc">시작한 날짜를 기준으로 주요 일수와 매년 주년이 정확하게 계산됩니다.</p>
-      </div>
-      <div class="anniversary-grid" id="anniversaryGrid"></div>
-    </section>
 
-    <section class="app-section" id="calendar">
-      <div class="section-header cal-header">
-        <h2 class="section-title">우리 캘린더</h2>
-        <div class="cal-nav">
-          <button type="button" class="cal-nav-btn" onclick="calMove(-1)" aria-label="이전 달">‹</button>
-          <button type="button" class="cal-title" id="calTitle" onclick="calToday()" title="오늘로">2026년 11월</button>
-          <button type="button" class="cal-nav-btn" onclick="calMove(1)" aria-label="다음 달">›</button>
-        </div>
+
+    <section class="app-section" id="upcoming">
+      <div class="section-header sec-link">
+        <h2 class="section-title">다가오는 날</h2>
+        <button type="button" class="sec-more" onclick="switchPage('calendar')">캘린더 ›</button>
       </div>
-      <div class="cal-box">
-        <div class="cal-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
-        <div class="cal-grid" id="calGrid"></div>
-        <div class="cal-day" id="calDay">
-          <div class="cal-day-title" id="calDayTitle"></div>
-          <div class="cal-day-list" id="calDayList"></div>
-          <div class="cal-add-row">
-            <input type="text" id="calEventInput" class="cal-input" maxlength="80" placeholder="이 날 일정 추가" onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) addCalEvent()" />
-            <input type="time" id="calEventTime" class="cal-time" aria-label="시간 (선택)" title="시간 (선택)" />
-            <button type="button" class="cal-add-btn" onclick="addCalEvent()">추가</button>
-          </div>
-        </div>
-      </div>
+      <div class="up-box" id="upcomingBox"></div>
     </section>
 
     <section class="app-section" id="qna">
@@ -2124,6 +2163,26 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       </div>
     </section>
 
+    <section class="app-section" id="notes">
+      <div class="section-header">
+        <div class="section-eyebrow">Secret Vault</div>
+        <h2 class="section-title">서로에게 보내는 쪽지</h2>
+        <p class="section-desc">언제든 전하고 싶은 따뜻한 한 줄을 남겨보세요.</p>
+      </div>
+      <div class="note-box">
+        <div class="note-sender-line">
+          <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">의 쪽지로 남겨져요</span>
+          <button type="button" class="note-sender-change" onclick="openIdentityModal()">계정 변경</button>
+        </div>
+        <textarea id="noteInput" class="note-textarea" rows="2" oninput="this.classList.toggle('has-text', !!this.value)" placeholder="전하고 싶은 마음 한 줄…" onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing){ event.preventDefault(); saveNote(); }"></textarea>
+        <div class="note-editor-actions">
+          <button class="btn-save-note" id="btnSaveNote" onclick="saveNote()">쪽지 남기기</button>
+          <button class="btn-cancel-edit-note" id="btnCancelEditNote" onclick="cancelEditNote()" style="display:none;">취소</button>
+        </div>
+        <div class="notes-list" id="notesList"></div>
+      </div>
+    </section>
+
     <section class="app-section" id="bucket">
       <div class="section-header">
         <div class="section-eyebrow">Our Dreams</div>
@@ -2146,25 +2205,45 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       </div>
     </section>
 
-    <section class="app-section" id="notes">
-      <div class="section-header">
-        <div class="section-eyebrow">Secret Vault</div>
-        <h2 class="section-title">서로에게 보내는 쪽지</h2>
-        <p class="section-desc">언제든 전하고 싶은 따뜻한 한 줄을 남겨보세요.</p>
+  </div>
+
+  <!-- VIEW: 캘린더 (일정 + 기념일) -->
+  <div id="view-calendar" class="page-view">
+    <div class="calendar-page">
+    <section class="app-section" id="calendar">
+      <div class="section-header cal-header">
+        <h2 class="section-title">우리 캘린더</h2>
+        <div class="cal-nav">
+          <button type="button" class="cal-nav-btn" onclick="calMove(-1)" aria-label="이전 달">‹</button>
+          <button type="button" class="cal-title" id="calTitle" onclick="calToday()" title="오늘로">2026년 11월</button>
+          <button type="button" class="cal-nav-btn" onclick="calMove(1)" aria-label="다음 달">›</button>
+        </div>
       </div>
-      <div class="note-box">
-        <div class="note-sender-line">
-          <span class="identity-chip-dot"></span><span class="identity-chip-name">정수</span><span class="identity-chip-sub">의 쪽지로 남겨져요</span>
-          <button type="button" class="note-sender-change" onclick="openIdentityModal()">계정 변경</button>
+      <div class="cal-box">
+        <div class="cal-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-day" id="calDay">
+          <div class="cal-day-title" id="calDayTitle"></div>
+          <div class="cal-day-list" id="calDayList"></div>
+          <div class="cal-add-row">
+            <input type="text" id="calEventInput" class="cal-input" maxlength="80" placeholder="이 날 일정 추가" onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) addCalEvent()" />
+            <input type="time" id="calEventTime" class="cal-time" aria-label="시간 (선택)" title="시간 (선택)" />
+            <button type="button" class="cal-add-btn" onclick="addCalEvent()">추가</button>
+          </div>
         </div>
-        <textarea id="noteInput" class="note-textarea" rows="2" placeholder="오늘 전하고 싶은 마음을 입력해 보세요..." onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing){ event.preventDefault(); saveNote(); }"></textarea>
-        <div class="note-editor-actions">
-          <button class="btn-save-note" id="btnSaveNote" onclick="saveNote()">쪽지 남기기</button>
-          <button class="btn-cancel-edit-note" id="btnCancelEditNote" onclick="cancelEditNote()" style="display:none;">취소</button>
-        </div>
-        <div class="notes-list" id="notesList"></div>
       </div>
     </section>
+
+    <section class="app-section" id="anniversaries">
+      <div class="section-header">
+        <div class="section-eyebrow">Milestones</div>
+        <h2 class="section-title">다가오는 기념일</h2>
+        <p class="section-desc">시작한 날짜를 기준으로 주요 일수와 매년 주년이 정확하게 계산됩니다.</p>
+      </div>
+      <div class="anniversary-grid" id="anniversaryGrid"></div>
+    </section>
+
+    </div>
   </div>
 
   <!-- VIEW 2: OUR MEMORIES -->
@@ -3245,8 +3324,8 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       } else if (type === 'bucket') {
         scrollToSection('bucket');
       } else if (type === 'calendar') {
+        switchPage('calendar');
         if (targetId && /^\d{4}-\d{2}-\d{2}$/.test(targetId)) calSelect(targetId);
-        scrollToSection('calendar');
       } else if (type === 'main_photo') {
         switchPage('home');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4303,6 +4382,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       }
       grid.innerHTML = html;
       renderCalDay(ann, mem);
+      renderUpcoming();
     }
     function renderCalDay(ann, mem) {
       const k = calSelected; if (!k) return;
@@ -4321,6 +4401,28 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       });
       (mem[k] || []).forEach(it => items.push('<div class="cal-item mem" onclick="openLightbox(\'' + it.id + '\')"><span class="cal-item-mark">📷</span><span class="cal-item-text">' + escapeHtml(it.title || '추억') + '</span><span class="cal-item-go">›</span></div>'));
       document.getElementById('calDayList').innerHTML = items.join('') || '<div class="cal-empty">일정이 없어요</div>';
+    }
+    // 홈 요약: 가장 가까운 기념일 1개 + 다가오는 일정 3개
+    function renderUpcoming() {
+      const box = document.getElementById('upcomingBox'); if (!box) return;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayK = calYmd(today);
+      const horizon = calYmd(new Date(today.getFullYear() + 3, today.getMonth(), today.getDate()));
+      const ann = calAnniversaries(todayK, horizon);
+      const annKeys = Object.keys(ann).sort();
+      const rows = [];
+      if (annKeys.length) rows.push({ date: annKeys[0], title: ann[annKeys[0]].join(' · '), kind: 'ann' });
+      getCalEvents().filter(e => e && e.date >= todayK).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99'))).slice(0, 3)
+        .forEach(e => rows.push({ date: e.date, title: e.title || '', time: e.time || '', kind: e.by === 'Her' ? 'her' : 'him' }));
+      rows.sort((a, b) => a.date.localeCompare(b.date));
+      const dday = k => { const [y, m, d] = k.split('-').map(Number); const n = Math.round((new Date(y, m - 1, d) - today) / 86400000); return n === 0 ? '오늘' : n === 1 ? '내일' : 'D-' + n; };
+      box.innerHTML = rows.map(r => {
+        const [, m, d] = r.date.split('-').map(Number); const wd = '일월화수목금토'[new Date(r.date + 'T00:00:00').getDay()];
+        return '<button type="button" class="up-row ' + r.kind + '" onclick="switchPage(\'calendar\'); calSelect(\'' + r.date + '\')">' +
+          '<span class="up-date"><b>' + m + '.' + String(d).padStart(2, '0') + '</b><i>' + wd + '</i></span>' +
+          '<span class="up-title">' + (r.kind === 'ann' ? '♥ ' : '') + escapeHtml(r.title) + (r.time ? ' <em>' + escapeHtml(r.time) + '</em>' : '') + '</span>' +
+          '<span class="up-dday">' + dday(r.date) + '</span></button>';
+      }).join('') + (rows.length < 2 ? '<button type="button" class="up-add" onclick="switchPage(\'calendar\'); setTimeout(() => document.getElementById(\'calEventInput\').focus(), 300)">＋ 데이트·일정 추가하기</button>' : '');
     }
     function calSelect(k) {
       const [y, m] = k.split('-').map(Number);
@@ -4457,6 +4559,10 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       if (page === 'home') {
         document.getElementById('view-home').classList.add('active');
         document.getElementById('tabHome').classList.add('active');
+      } else if (page === 'calendar') {
+        document.getElementById('view-calendar').classList.add('active');
+        document.getElementById('tabCalendar').classList.add('active');
+        renderCalendar();
       } else if (page === 'memories') {
         document.getElementById('view-memories').classList.add('active');
         document.getElementById('tabMemories').classList.add('active');
@@ -5544,7 +5650,9 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
         document.getElementById("bucketList").innerHTML = `<div style="text-align: center; padding: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">등록된 버킷리스트가 없습니다. 함께하고 싶은 꿈을 추가해 보세요!</div>`;
         return;
       }
-      document.getElementById("bucketList").innerHTML = list.map((item, idx) => `
+      const BUCKET_PREVIEW = 5;
+      const hiddenB = window.__bucketsShowAll ? 0 : Math.max(0, list.length - BUCKET_PREVIEW);
+      document.getElementById("bucketList").innerHTML = list.map((item, idx) => (hiddenB && idx >= BUCKET_PREVIEW) ? '' : `
         <div class="bucket-item ${item.done ? 'done' : ''}">
           <div class="bucket-item-left" onclick="toggleBucket(${idx})">
             <div class="bucket-checkbox">${item.done ? '✓' : ''}</div>
@@ -5552,7 +5660,8 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
           </div>
           <button class="btn-del-bucket" onclick="deleteBucket(${idx})" title="삭제">✕</button>
         </div>
-      `).join('');
+      `).join('') + (hiddenB ? `<button type="button" class="notes-more-btn" onclick="window.__bucketsShowAll=true; renderBuckets();">${hiddenB}개 더 보기</button>`
+        : (window.__bucketsShowAll && list.length > BUCKET_PREVIEW ? `<button type="button" class="notes-more-btn" onclick="window.__bucketsShowAll=false; renderBuckets();">접기</button>` : ''));
     }
     function toggleBucket(index) {
       registerLocalAction();
@@ -5775,7 +5884,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
         const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 7);
         saved.unshift({ id, text, sender: currentSender, date: dateStr });
         localStorage.setItem('couple_notes', JSON.stringify(saved));
-        input.value = '';
+        input.value = ''; input.classList.remove('has-text');
         loadNotes();
         syncToCloud(null, 'note_added');
         showToast('쪽지가 성공적으로 남겨졌습니다!', '💌');
@@ -5787,6 +5896,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
       if (!item) return;
       editingNoteId = id;
       document.getElementById('noteInput').value = item.text;
+      document.getElementById('noteInput').classList.add('has-text');
       document.getElementById('noteInput').focus();
       document.getElementById('btnSaveNote').innerText = '수정 완료';
       document.getElementById('btnCancelEditNote').style.display = 'inline-block';
@@ -5795,6 +5905,7 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
     function cancelEditNote() {
       editingNoteId = null;
       document.getElementById('noteInput').value = '';
+      document.getElementById('noteInput').classList.remove('has-text');
       document.getElementById('btnSaveNote').innerText = '쪽지 남기기';
       document.getElementById('btnCancelEditNote').style.display = 'none';
     }
@@ -6241,6 +6352,9 @@ nav.apple-nav { background-color:var(--nav-solid, var(--bg-primary)) !important;
   <nav class="tabbar">
     <div class="tabbar-btn page-tab-btn active" id="tabHome" onclick="switchPage('home')">
       <span class="tabbar-icon">♥</span><span class="tabbar-label">홈</span>
+    </div>
+    <div class="tabbar-btn page-tab-btn" id="tabCalendar" onclick="switchPage('calendar')">
+      <span class="tabbar-icon">📅</span><span class="tabbar-label">캘린더</span>
     </div>
     <div class="tabbar-btn page-tab-btn" id="tabMemories" onclick="switchPage('memories')">
       <span class="tabbar-icon">▦</span><span class="tabbar-label">추억</span>
