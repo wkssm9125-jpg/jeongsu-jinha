@@ -19,7 +19,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611042052" />
+  <meta name="jj-version" content="202611042108" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2121,6 +2121,11 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
   #view-home.active #notes { grid-column:3; grid-row:span 3; }
   #view-home.active #bucket { grid-column:1 / span 2; }
 }
+
+/* 띄어쓰기 없는 아주 긴 글(링크 등)이 화면 밖으로 밀려 삭제 버튼이 안 보이던 문제 */
+.bucket-item-left { min-width:0; }
+.bucket-title, .note-item-text, .qna-text, .cal-item-text, .chat-bubble, .memory-card-desc, .lightbox-desc, .push-history-item { min-width:0; overflow-wrap:anywhere; word-break:break-word; }
+.btn-del-bucket { flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -3583,7 +3588,10 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     // 추억(사진첩)은 사진이 base64가 아니라 가벼운 URL이라 로컬에 그대로 캐시해도 부담 없다.
     // 사이트를 열자마자 이 캐시로 즉시 화면을 채우고, 그 사이 백그라운드로 최신 데이터를 가져와 덮어쓴다(0초 체감).
     function saveMemoriesCache() {
-      try { localStorage.setItem(MEMORIES_CACHE_KEY, JSON.stringify(GLOBAL_MEMORIES)); } catch(e) {}
+      // 업로드 중인 미리보기(사진 원본을 글자로 바꾼 data: 주소, 장당 수 MB)는 저장하지 않는다.
+      // 저장공간(약 5MB)이 꽉 차면 채팅·쪽지 저장까지 실패할 수 있다.
+      const light = GLOBAL_MEMORIES.filter(it => !(it.media || []).some(m => String(m.url || '').startsWith('data:') || String(m.thumbUrl || '').startsWith('data:')));
+      try { localStorage.setItem(MEMORIES_CACHE_KEY, JSON.stringify(light)); } catch(e) {}
     }
     function loadMemoriesCache() {
       try {
@@ -3623,6 +3631,8 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
     // 사용자가 입력한 제목/메모/버킷리스트/쪽지 텍스트를 그대로 innerHTML에 꽂으면
     // "<img onerror=...>" 같은 문자열이 실제 태그로 해석될 수 있다(XSS). 렌더링 직전에
     // 항상 이 함수를 통해 특수문자를 이스케이프한다.
+    // onclick="...('id')" 안에 넣는 값: 영문·숫자·-_.: 만 허용 (따옴표로 코드를 끼워 넣는 것 방지)
+    function jsId(v) { return String(v == null ? '' : v).replace(/[^A-Za-z0-9_\-.:]/g, ''); }
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -4097,6 +4107,10 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
           if (cloud.albumUrl) applyAlbumUrl(cloud.albumUrl);
           if (cloud.memories && Array.isArray(cloud.memories)) {
             cloud.memories.forEach(item => { item.category = normalizeCategory(item.category); });
+            // 지금 올리는 중인 추억(미리보기 카드)은 서버 목록에 아직 없으니 사라지지 않게 앞에 붙여 둔다
+            // (올리기가 막 끝난 것도 서버 사진 목록이 갱신될 때까지 최대 1분은 남겨 둔다)
+            const uploading = GLOBAL_MEMORIES.filter(it => ((it.media || []).some(m => String(m.url || '').startsWith('data:')) || (it._localUntil || 0) > Date.now()) && !cloud.memories.some(c => c.id === it.id));
+            if (uploading.length) cloud.memories = uploading.concat(cloud.memories);
             const nextMem = JSON.stringify(cloud.memories);
             if (nextMem !== JSON.stringify(GLOBAL_MEMORIES)) {
               GLOBAL_MEMORIES = cloud.memories;
@@ -4531,12 +4545,12 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       (ann[k] || []).forEach(a => items.push('<div class="cal-item ann"><span class="cal-item-mark">♥</span><span class="cal-item-text">' + escapeHtml(a) + '</span></div>'));
       getCalEvents().filter(e => e && e.date === k).sort((a, b) => String(a.time || '99').localeCompare(String(b.time || '99'))).forEach(e => {
         items.push('<div class="cal-item ev ' + (e.by === 'Her' ? 'her' : 'him') + '"><span class="cal-item-mark"></span>' +
-          (e.time ? '<span class="cal-item-time">' + escapeHtml(e.time) + '</span>' : '') +
+          (/^\d{2}:\d{2}$/.test(e.time || '') ? '<span class="cal-item-time">' + e.time + '</span>' : '') +
           '<span class="cal-item-text">' + escapeHtml(e.title || '') + '</span>' +
-          '<button type="button" class="cal-item-btn" onclick="editCalEvent(\'' + e.id + '\')" aria-label="수정">✎</button>' +
-          '<button type="button" class="cal-item-btn" onclick="deleteCalEvent(\'' + e.id + '\')" aria-label="삭제">✕</button></div>');
+          '<button type="button" class="cal-item-btn" onclick="editCalEvent(\'' + jsId(e.id) + '\')" aria-label="수정">✎</button>' +
+          '<button type="button" class="cal-item-btn" onclick="deleteCalEvent(\'' + jsId(e.id) + '\')" aria-label="삭제">✕</button></div>');
       });
-      (mem[k] || []).forEach(it => items.push('<div class="cal-item mem" onclick="openLightbox(\'' + it.id + '\')"><span class="cal-item-mark">📷</span><span class="cal-item-text">' + escapeHtml(it.title || '추억') + '</span><span class="cal-item-go">›</span></div>'));
+      (mem[k] || []).forEach(it => items.push('<div class="cal-item mem" onclick="openLightbox(\'' + jsId(it.id) + '\')"><span class="cal-item-mark">📷</span><span class="cal-item-text">' + escapeHtml(it.title || '추억') + '</span><span class="cal-item-go">›</span></div>'));
       document.getElementById('calDayList').innerHTML = items.join('') || '<div class="cal-empty">일정이 없어요</div>';
     }
     // 홈 요약: 가장 가까운 기념일 1개 + 다가오는 일정 3개
@@ -4549,13 +4563,13 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       const annKeys = Object.keys(ann).sort();
       const rows = [];
       if (annKeys.length) rows.push({ date: annKeys[0], title: ann[annKeys[0]].join(' · '), kind: 'ann' });
-      getCalEvents().filter(e => e && e.date >= todayK).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99'))).slice(0, 3)
+      getCalEvents().filter(e => e && /^\d{4}-\d{2}-\d{2}$/.test(e.date || '') && e.date >= todayK).sort((a, b) => (a.date + (a.time || '99')).localeCompare(b.date + (b.time || '99'))).slice(0, 3)
         .forEach(e => rows.push({ date: e.date, title: e.title || '', time: e.time || '', kind: e.by === 'Her' ? 'her' : 'him' }));
       rows.sort((a, b) => a.date.localeCompare(b.date));
       const dday = k => { const [y, m, d] = k.split('-').map(Number); const n = Math.round((new Date(y, m - 1, d) - today) / 86400000); return n === 0 ? '오늘' : n === 1 ? '내일' : 'D-' + n; };
       box.innerHTML = rows.map(r => {
         const [, m, d] = r.date.split('-').map(Number); const wd = '일월화수목금토'[new Date(r.date + 'T00:00:00').getDay()];
-        return '<button type="button" class="up-row ' + r.kind + '" onclick="switchPage(\'calendar\'); calSelect(\'' + r.date + '\')">' +
+        return '<button type="button" class="up-row ' + r.kind + '" onclick="switchPage(\'calendar\'); calSelect(\'' + jsId(r.date) + '\')">' +
           '<span class="up-date"><b>' + m + '.' + String(d).padStart(2, '0') + '</b><i>' + wd + '</i></span>' +
           '<span class="up-title">' + (r.kind === 'ann' ? '♥ ' : '') + escapeHtml(r.title) + (r.time ? ' <em>' + escapeHtml(r.time) + '</em>' : '') + '</span>' +
           '<span class="up-dday">' + dday(r.date) + '</span></button>';
@@ -4691,7 +4705,16 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
 
     // 8-1. 동영상은 캔버스로 리사이즈할 수 없으므로 원본 그대로 base64로 읽는다.
     //      (용량이 큰 만큼 업로드 시간이 오래 걸릴 수 있어 크기 가이드를 안내한다)
-    const VIDEO_WARN_SIZE = 60 * 1024 * 1024; // 60MB 이상이면 경고만 하고 진행
+    const VIDEO_WARN_SIZE = 20 * 1024 * 1024; // 20MB 이상이면 시간이 걸린다고 알려준다
+    // 구글 드라이브(Apps Script)는 한 번에 약 50MB까지만 받는다. 동영상은 글자(base64)로 바꾸면 1.33배가 되므로 35MB가 한계.
+    // 예전엔 이보다 큰 동영상도 그냥 올리다가 한참 뒤 알 수 없는 오류로 실패했다 → 미리 막고 이유를 알려준다.
+    const VIDEO_MAX_SIZE = 35 * 1024 * 1024;
+    function tooBigVideo(files) {
+      const big = files.find(f => isVideoFile(f) && f.size > VIDEO_MAX_SIZE);
+      if (!big) return false;
+      alert(`[${big.name}] 동영상이 ${(big.size / 1048576).toFixed(0)}MB라 올릴 수 없어요 (35MB까지).\n\n아이폰 사진 앱에서 영상을 열고 [편집]으로 길이를 줄인 뒤 다시 올려 주세요.`);
+      return true;
+    }
 
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
@@ -4813,17 +4836,17 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
         const folderUrl = item.folderUrl || driveAlbumUrl();
 
         return `
-          <div class="memory-card" onclick="openLightbox('${item.id}')">
+          <div class="memory-card" onclick="openLightbox('${jsId(item.id)}')">
             <div class="memory-img-wrapper">
               ${coverImg
-                ? `<img class="memory-img" src="${coverImg}" alt="${escapeHtml(item.title)}" ${cardIdx < 4 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" />`
+                ? `<img class="memory-img" src="${escapeHtml(coverImg)}" alt="${escapeHtml(item.title)}" ${cardIdx < 4 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" />`
                 : `<div class="memory-img memory-img-placeholder">🖼<span>사진 준비 중</span></div>`}
               ${cover && cover.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
               <span class="memory-tag-badge">${getCategoryName(item.category)}</span>
               ${count > 1 ? `<span class="photo-count-badge">📷 ${count}</span>` : ''}
               <div class="memory-card-actions">
-                <button class="btn-card-action edit" onclick="event.stopPropagation(); openEditMemoryModal('${item.id}')" title="수정">✎</button>
-                <button class="btn-card-action delete" onclick="event.stopPropagation(); deleteMemory('${item.id}')" title="삭제">✕</button>
+                <button class="btn-card-action edit" onclick="event.stopPropagation(); openEditMemoryModal('${jsId(item.id)}')" title="수정">✎</button>
+                <button class="btn-card-action delete" onclick="event.stopPropagation(); deleteMemory('${jsId(item.id)}')" title="삭제">✕</button>
               </div>
             </div>
             <div class="memory-card-body">
@@ -4833,7 +4856,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
               </div>
               <div class="memory-card-footer">
                 <span>${escapeHtml(item.date)}</span>
-                <a href="${folderUrl}" target="_blank" class="drive-link-badge" onclick="event.stopPropagation()" title="구글 드라이브에서 열기">📁 <span class="badge-label">드라이브 폴더</span> ↗</a>
+                <a href="${escapeHtml(folderUrl)}" target="_blank" class="drive-link-badge" onclick="event.stopPropagation()" title="구글 드라이브에서 열기">📁 <span class="badge-label">드라이브 폴더</span> ↗</a>
               </div>
             </div>
           </div>
@@ -4948,6 +4971,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       if (!fileInput.files || fileInput.files.length === 0) { alert('사진 또는 동영상 파일을 한 개 이상 선택해 주세요.'); return; }
 
       const selectedFiles = Array.from(fileInput.files);
+      if (tooBigVideo(selectedFiles)) return;
       const bigVideo = selectedFiles.find(f => isVideoFile(f) && f.size > VIDEO_WARN_SIZE);
       if (bigVideo && !confirm(`[${bigVideo.name}] 동영상의 용량이 커서 업로드에 시간이 오래 걸릴 수 있어요. 계속할까요?`)) {
         return;
@@ -4971,6 +4995,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       (async () => {
         const newItem = {
           id: 'mem-' + Date.now(),
+          _localUntil: Date.now() + 120000,
           title: title,
           category: category,
           date: formattedDate,
@@ -5026,6 +5051,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
             }
           });
 
+          newItem._localUntil = Date.now() + 60000;
           renderMemories();
           syncToCloud();
           updateUploadProgress(100, `✨ 업로드 완료!`, true);
@@ -5079,7 +5105,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
       }
       container.innerHTML = editingItemMedia.map((m, idx) => `
         <div class="edit-photo-thumb-wrap">
-          <img src="${fastImg(m.thumbUrl || m.url)}" class="edit-photo-thumb" />
+          <img src="${escapeHtml(fastImg(m.thumbUrl || m.url))}" class="edit-photo-thumb" />
           ${m.type === 'video' ? `<span class="media-play-badge" style="width:20px;height:20px;font-size:0.6rem;">▶</span>` : ''}
           <button class="btn-remove-edit-photo" onclick="removeEditPhoto(${idx})" title="삭제">✕</button>
         </div>
@@ -5115,6 +5141,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
         return;
       }
 
+      if (tooBigVideo(newlySelectedFiles)) return;
       const bigVideo = newlySelectedFiles.find(f => isVideoFile(f) && f.size > VIDEO_WARN_SIZE);
       if (bigVideo && !confirm(`[${bigVideo.name}] 동영상의 용량이 커서 업로드에 시간이 오래 걸릴 수 있어요. 계속할까요?`)) {
         return;
@@ -5392,7 +5419,7 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
 
         thumbsContainer.innerHTML = currentLightboxMedia.map((m, idx) => `
           <div class="thumb-preview-item-wrap">
-            <img src="${fastImg(m.thumbUrl || m.url)}" class="thumb-preview-item ${idx === currentLightboxIndex ? 'active' : ''}" onclick="setSlideIndex(${idx})" />
+            <img src="${escapeHtml(fastImg(m.thumbUrl || m.url))}" class="thumb-preview-item ${idx === currentLightboxIndex ? 'active' : ''}" onclick="setSlideIndex(${idx})" />
             ${m.type === 'video' ? `<span class="media-play-badge">▶</span>` : ''}
           </div>
         `).join('');
@@ -6013,8 +6040,8 @@ html:not([data-album="mosaic"]):not([data-album="timeline"]) .memory-card-footer
               ${item.edited ? '<span class="note-item-edited-tag">(수정됨)</span>' : ''}
             </div>
             <div class="note-item-actions">
-              <button onclick="editNote('${item.id}')" title="수정">✏️</button>
-              <button onclick="deleteNote('${item.id}')" title="삭제">🗑</button>
+              <button onclick="editNote('${jsId(item.id)}')" title="수정">✏️</button>
+              <button onclick="deleteNote('${jsId(item.id)}')" title="삭제">🗑</button>
             </div>
           </div>
           <div class="note-item-text">${escapeHtml(item.text)}</div>
