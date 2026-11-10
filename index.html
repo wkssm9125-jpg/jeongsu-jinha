@@ -21,7 +21,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611100133" />
+  <meta name="jj-version" content="202611100152" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1596,6 +1596,12 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 [data-theme="tron"] .bucket-card::after { animation-delay:-3.1s; }
 [data-theme="tron"] .note-box::after { animation-delay:-4s; }
 @keyframes tronEdge { from{ background-position:100% 0 } to{ background-position:0 0 } }
+/* ⚡ 원래부터 넘침을 자르는 상자(디데이·설정 묶음)는 같은 궤적을 transform 으로 (GPU 처리).
+   나머지 상자는 잘라 내면 글로우가 잘리므로 배경 위치 방식 그대로 둔다. 띠 폭 260% · 이동 -61.54%→0 = 예전 100%→0% 위치 */
+[data-theme="tron"] .hero-inner::after, [data-theme="tron"] .settings-group::after {
+  right:auto; width:260%; background-size:100% 100%; animation-name:tronEdgeX; will-change:transform;
+}
+@keyframes tronEdgeX { from{ transform:translateX(-61.54%) } to{ transform:translateX(0) } }
 
 /* ---- 글자 ---- */
 [data-theme="tron"] .section-title, [data-theme="tron"] .settings-title, [data-theme="tron"] .memories-header .section-title {
@@ -1612,7 +1618,8 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 [data-theme="tron"] .dday-big .dday-num { font-family:var(--tron-font); font-weight:900; color:#eaffff; letter-spacing:.02em;
   text-shadow:0 0 6px #00e5ff, 0 0 18px #00e5ff, 0 0 40px rgba(0,229,255,.6); animation:tronPulse 3s ease-in-out infinite; }
 [data-theme="tron"] .dday-big .dday-unit { color:var(--tron-orange); text-shadow:0 0 10px var(--tron-orange); }
-@keyframes tronPulse { 0%,100%{ text-shadow:0 0 6px #00e5ff, 0 0 18px #00e5ff, 0 0 40px rgba(0,229,255,.55) } 50%{ text-shadow:0 0 4px #00e5ff, 0 0 10px #00e5ff, 0 0 22px rgba(0,229,255,.35); opacity:.92 } }
+/* ⚡ 빛 번짐 크기(text-shadow)를 매 장면 바꾸면 큰 숫자를 매번 다시 그리고 배치까지 다시 해서 버벅였다 → 번짐은 고정, 밝기(opacity)만 맥동 (GPU 처리) */
+@keyframes tronPulse { 0%,100%{ opacity:1 } 50%{ opacity:.78 } }
 [data-theme="tron"] .dday-container { background:rgba(0,229,255,.06) !important; border:1px solid var(--tron-cyan-soft) !important; }
 [data-theme="tron"] .dday-card .dday-num { font-family:var(--tron-font); color:#bff8ff; text-shadow:0 0 6px rgba(0,229,255,.8); }
 [data-theme="tron"] .dday-card:last-child .dday-num { color:var(--tron-orange); text-shadow:0 0 8px var(--tron-orange); }
@@ -1679,9 +1686,10 @@ html:not(.unlocked) body > *:not(.lock-screen):not(script) { visibility:hidden; 
 [data-theme="tron"] .qna-person-card:nth-child(2) { background:rgba(255,138,31,.07) !important; border-left-color:var(--tron-orange) !important; }
 [data-theme="tron"] .qna-person-header { text-shadow:0 0 6px currentColor; font-family:var(--tron-font); letter-spacing:.06em; }
 [data-theme="tron"] .progress-bar-bg { background:rgba(0,229,255,.1) !important; overflow:hidden; }
-[data-theme="tron"] .progress-bar-fill { background:linear-gradient(90deg, #00a8c4, #00e5ff) !important; box-shadow:0 0 12px var(--tron-cyan); position:relative; }
-[data-theme="tron"] .progress-bar-fill::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); background-size:40% 100%; background-repeat:no-repeat; animation:tronShine 2.2s linear infinite; }
-@keyframes tronShine { from{ background-position:-60% 0 } to{ background-position:160% 0 } }
+[data-theme="tron"] .progress-bar-fill { background:linear-gradient(90deg, #00a8c4, #00e5ff) !important; box-shadow:0 0 12px var(--tron-cyan); position:relative; overflow:hidden; }
+/* ⚡ 반짝임은 배경 위치 대신 transform 으로 이동 (예전: background-position -60%→160%, 같은 궤적) */
+[data-theme="tron"] .progress-bar-fill::after { content:""; position:absolute; top:0; bottom:0; left:0; width:40%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); animation:tronShine 2.2s linear infinite; will-change:transform; }
+@keyframes tronShine { from{ transform:translateX(-90%) } to{ transform:translateX(240%) } }
 [data-theme="tron"] .bucket-item { background:rgba(0,229,255,.05) !important; border-left:2px solid rgba(0,229,255,.35) !important; transition:background .2s, box-shadow .2s; }
 [data-theme="tron"] .bucket-checkbox { border:1px solid var(--tron-cyan) !important; box-shadow:0 0 6px rgba(0,229,255,.5); }
 [data-theme="tron"] .bucket-item.done .bucket-checkbox { background:var(--tron-cyan) !important; color:#02060b !important; box-shadow:0 0 12px var(--tron-cyan); }
@@ -6780,7 +6788,32 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
       updateHeroMeta();
       setTimeout(function () { updateHeroMeta(); syncSettingsPhoto(); }, 1500);
       setInterval(function () { updateHeroMeta(); syncSettingsPhoto(); }, 30000);
-    
+
+      // ⚡ 탭 미리 데우기: 탭을 처음 열 때 느린 건(0.2초 안팎) 스크립트가 아니라 글자·사진 배치를 처음 계산하는 비용이다.
+      //    앱이 한가할 때 안 보이는 상태로 한 번씩 배치해 두면, 처음 누를 때도 두 번째처럼 바로 열린다.
+      // ponytail: 시작 2.5초 뒤 고정 시점. 데이터가 그보다 늦게 오면 그만큼 효과가 줄어든다(동작엔 문제 없음).
+      window.addEventListener('load', function () {
+        var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 50); };
+        ['calendar', 'memories', 'chat', 'settings'].forEach(function (p, i) {
+          setTimeout(function () {
+            idle(function () {
+              var v = document.getElementById('view-' + p);
+              if (!v || v.classList.contains('active')) return;
+              try {
+                if (p === 'calendar') renderCalendar();
+                else if (p === 'memories') renderMemories();
+                else if (p === 'chat') renderChatMessages();
+              } catch (e) {}
+              var s = v.style;
+              s.setProperty('display', 'block'); s.setProperty('visibility', 'hidden');
+              s.setProperty('position', 'absolute'); s.setProperty('left', '0'); s.setProperty('top', '0');
+              void v.offsetHeight;
+              ['display', 'visibility', 'position', 'left', 'top'].forEach(function (k) { s.removeProperty(k); });
+            }, { timeout: 2000 });
+          }, 2500 + i * 500);
+        });
+      });
+
       // ---- 모바일 키보드 대응 (CSS 23번 섹션과 한 세트) ----
       // 글자 입력칸에 포커스가 가면(=키보드가 올라오면) body.kb-open 을 켜서 하단 탭바를 숨기고,
       // 채팅 화면은 실제 보이는 영역(visualViewport)에 꼭 맞게 고정한다.
@@ -6829,21 +6862,29 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
         }, 80);
       });
 
+      // ⚡ 값이 실제로 바뀔 때만 쓴다. 같은 값이라도 html 에 다시 쓰면 화면 전체 스타일을 다시 계산해서
+      //    (스크롤·키보드 이벤트마다 불리므로) 아이폰에서 스크롤이 끊기는 원인이 됐다.
+      var __vvCache = {};
+      function __setRootVar(k, v) {
+        if (__vvCache[k] === v) return;
+        __vvCache[k] = v;
+        document.documentElement.style.setProperty(k, v);
+      }
       function __updateVVH(ev) {
         var vv = window.visualViewport;
         var h = vv ? vv.height : window.innerHeight;
         var o = vv ? vv.offsetTop : 0;
-        document.documentElement.style.setProperty("--vvh", Math.round(h) + "px");
-        document.documentElement.style.setProperty("--vvo", Math.round(o) + "px");
+        __setRootVar("--vvh", Math.round(h) + "px");
+        __setRootVar("--vvo", Math.round(o) + "px");
         // 상단바/하단 탭바 실제 높이 (안전 영역·홈 화면 앱 여부에 따라 달라짐)
         var navEl = document.querySelector('.apple-nav');
         var tabEl = document.querySelector('.tabbar');
         var navH = navEl && getComputedStyle(navEl).display !== 'none' ? navEl.getBoundingClientRect().height : 0;
         if (!document.body.classList.contains('kb-open')) {
           var tabH = tabEl && getComputedStyle(tabEl).display !== 'none' ? tabEl.getBoundingClientRect().height : 0;
-          document.documentElement.style.setProperty("--tabh", Math.round(tabH) + "px");
+          __setRootVar("--tabh", Math.round(tabH) + "px");
         }
-        document.documentElement.style.setProperty("--navh", Math.round(navH) + "px");
+        __setRootVar("--navh", Math.round(navH) + "px");
         var chatView = document.getElementById('view-chat');
         var isResize = !ev || ev.type === 'resize';
         if (isResize && document.body.classList.contains('kb-open') && chatView && chatView.classList.contains('active')) {
