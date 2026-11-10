@@ -21,7 +21,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611100152" />
+  <meta name="jj-version" content="202611100220" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -3492,6 +3492,16 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
     const __deletedBuckets = new Set();
     const __deletedEvents = new Set();
     const __deletedPeriods = new Set();
+    // 🛡️ "무엇을 지웠는지"도 기기에 저장해 둔다. 예전엔 메모리에만 있어서, 삭제가 서버에 가기 전에 앱을 닫으면
+    //    다음 실행 때 목록만 보내고 삭제 표시는 빠져서(서버는 항목 단위로 합침) 지운 쪽지·버킷·일정·주기가 되살아났다.
+    const DELETED_KEY = 'jj_pending_deletes';
+    function persistDeleted() {
+      try { localStorage.setItem(DELETED_KEY, JSON.stringify({ n: [...__deletedNotes], b: [...__deletedBuckets], e: [...__deletedEvents], p: [...__deletedPeriods] })); } catch (e) {}
+    }
+    try {
+      const d = JSON.parse(localStorage.getItem(DELETED_KEY) || 'null');
+      if (d) { (d.n || []).forEach(x => __deletedNotes.add(x)); (d.b || []).forEach(x => __deletedBuckets.add(x)); (d.e || []).forEach(x => __deletedEvents.add(x)); (d.p || []).forEach(x => __deletedPeriods.add(x)); }
+    } catch (e) {}
     function persistSynced() { try { localStorage.setItem('jj_last_synced', JSON.stringify(__lastSynced)); } catch (e) {} }
     function snapshotSynced() { try { __lastSynced = JSON.parse(JSON.stringify(getFullAppState())); persistSynced(); } catch (e) {} }
     // 앱을 닫기 직전에 못 보낸 변경이 있으면 다음에 열 때 찾아서 보낼 수 있도록 기준점을 저장해 둔다
@@ -3530,15 +3540,25 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
     const SYNC_MAX_RETRIES = 5;
     const __pendingChatIds = new Set(); // 아직 서버 저장이 확인되지 않은 내 채팅
     const __failedChatIds = new Set();  // 여러 번 실패한 내 채팅 (말풍선 아래 "다시 보내기")
+    // 🛡️ 재시도를 다 썼는데도(온라인 상태) 저장이 계속 거절되면 true.
+    //    예전엔 이 요청이 대기열에 남아 "저장 중"으로 보여서, 상대의 새 쪽지·채팅 받아오기가 영원히 막혔다.
+    //    이제는 받아오기는 계속하되, 이 기기에서 아직 못 보낸 항목은 덮어쓰지 않는다(아래 loadFromCloudSilently).
+    let __syncGaveUp = false;
 
     function hasPendingSync() {
       return __syncQueue.length > 0 || !!__syncInflight || !!__syncDebounce;
+    }
+    // 받아오기를 미뤄야 하는가: 저장이 진행 중일 때만. 포기한 저장이 남아 있는 것만으로는 막지 않는다.
+    function blocksLoad() {
+      return !!__syncInflight || !!__syncDebounce || (__syncQueue.length > 0 && !__syncGaveUp);
     }
 
     // notifyType: 상대에게 푸시 알림을 보낼 만큼 "의미 있는 새 콘텐츠"일 때만 지정해서 넘긴다
     // (예: 'note_added', 'bucket_added'). 무드/읽음 표시처럼 사소한 저장은 생략해서 알림이 시끄럽지 않게 한다.
     function syncToCloud(immediatePayload = null, notifyType = null, extraFields = null) {
       __localVersion++;
+      persistDeleted(); // 삭제는 항상 바로 뒤에 syncToCloud 를 부르므로 여기서 한 번에 저장
+
       setSyncStatus("syncing", "저장 중...");
       const last = __syncQueue[__syncQueue.length - 1];
       // 아직 출발하지 않은 마지막 요청과 합칠 수 있으면 합친다.
@@ -3601,6 +3621,8 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
             sentDeletedBuckets.forEach(t => __deletedBuckets.delete(t));
             sentDeletedEvents.forEach(id => __deletedEvents.delete(id));
             sentDeletedPeriods.forEach(id => __deletedPeriods.delete(id));
+            persistDeleted();
+            __syncGaveUp = false;
             sentChatIds.forEach(id => { __pendingChatIds.delete(id); __failedChatIds.delete(id); });
           } catch (e) {
             req.sending = false;
@@ -3614,6 +3636,7 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
             } else {
               setSyncStatus('error', offline ? '오프라인 · 연결되면 저장' : '저장 실패 · 눌러서 재시도');
               __pendingChatIds.forEach(id => __failedChatIds.add(id));
+              if (!offline) __syncGaveUp = true;
             }
             return false;
           }
@@ -3719,7 +3742,7 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
       if (!GAS_WEB_APP_URL) return;
       if (!isLoggedIn()) return; // 잠금 상태에서는 서버에 묻지 않는다
       if (fromRealtime && __loadInflight) { __refreshAfterSync = true; return; }
-      if (fromRealtime && hasPendingSync()) { __refreshAfterSync = true; return; } // 내 저장이 끝나면 바로 다시 받는다
+      if (fromRealtime && blocksLoad()) { __refreshAfterSync = true; return; } // 내 저장이 끝나면 바로 다시 받는다
       if (__loadInflight) return __loadInflight; // 이미 받아오는 중이면 같은 요청을 기다린다 (중복 요청 방지)
 
       if (!force && !isInitialLoad) {
@@ -3727,7 +3750,7 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
         // 저장 못 한 내용이 남아 있으면 먼저 보내 본다
         if (__syncQueue.length > 0 && !__syncInflight && !__syncDebounce) { try { await drainSyncQueue(); } catch (e) {} }
         // 아직 저장 중인 내 변경이 있으면, 지금 받는 서버 데이터는 그보다 낡았으므로 이번엔 건너뛴다
-        if (hasPendingSync()) return;
+        if (blocksLoad()) return;
       }
 
       __loadInflight = (async () => {
@@ -3758,9 +3781,14 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
           }
           // 응답을 기다리는 동안 이 기기에서 뭔가 바꿨다면 이 응답은 이미 낡은 데이터 → 버리고 다음에 다시 받는다.
           // (예전엔 이 응답이 방금 쓴 쪽지/버킷을 덮어써서 지워버릴 수 있었다)
-          if (__localVersion !== startVersion || (!force && hasPendingSync())) return;
+          if (__localVersion !== startVersion || (!force && blocksLoad())) return;
 
           const cloud = json.data;
+          // 포기한 저장이 남아 있으면, 그 저장에 담긴(=이 기기에서 바꿨는데 못 보낸) 항목은 서버 값으로 덮어쓰지 않는다.
+          // 채팅은 mergeCloudChat 이 내 최근 메시지를 살려 두므로 그대로 받는다.
+          const keepLocal = (__syncGaveUp && __syncQueue.length > 0) ? new Set(changedStateKeys(getFullAppState())) : null;
+          if (keepLocal) ['anniversary', 'mood', 'photoSettings', 'qnaIndex', 'qnaAnswers', 'buckets', 'notes', 'events', 'periods', 'cycleLogs', 'cycleSettings']
+            .forEach(k => { if (keepLocal.has(k)) delete cloud[k]; });
 
           // 누가 새로 남긴 채팅/쪽지인지 먼저 계산 (덮어쓰기 전의 로컬 목록과 비교)
           const partner = partnerOf(currentSender);
@@ -5211,9 +5239,12 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
           const targetFolderId = prepJson.folderId;
           const finalId = "drive-" + targetFolderId;
 
-          if (itemIdx !== -1 && prepJson.folderUrl) {
-            GLOBAL_MEMORIES[itemIdx].folderUrl = prepJson.folderUrl;
-            GLOBAL_MEMORIES[itemIdx].id = finalId;
+          // 🛡️ 서버를 기다리는 동안 받아오기가 목록을 통째로 바꿨을 수 있으니 위치를 id 로 다시 찾는다
+          //    (예전엔 처음 기억한 위치 번호를 그대로 써서 엉뚱한 추억의 id·폴더 주소를 덮어쓸 수 있었다)
+          const curIdx = GLOBAL_MEMORIES.findIndex(m => m.id === id);
+          if (curIdx !== -1 && prepJson.folderUrl) {
+            GLOBAL_MEMORIES[curIdx].folderUrl = prepJson.folderUrl;
+            GLOBAL_MEMORIES[curIdx].id = finalId;
           }
 
           // 4. 사용자가 ✕로 지운 기존 파일만 삭제
@@ -5276,18 +5307,19 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
       registerLocalAction();
       const targetItem = GLOBAL_MEMORIES.find(item => item.id === id);
       const targetTitle = targetItem ? targetItem.title : "";
+      const targetIdx = GLOBAL_MEMORIES.indexOf(targetItem);
 
       GLOBAL_MEMORIES = GLOBAL_MEMORIES.filter(item => item.id !== id);
       renderMemories();
       closeDeleteModal();
-      
+
       const lightbox = document.getElementById('lightboxModal');
       if (lightbox.classList.contains('active')) closeLightbox();
 
-      showToast('추억 앨범이 삭제되었습니다.', '🗑');
-
+      // 🛡️ 서버 결과를 확인한다. 예전엔 실패해도 "삭제되었습니다"를 띄우고 오류를 버려서, 다음 동기화 때 추억이 되살아났다.
+      let ok = false;
       try {
-        await gasFetch(GAS_WEB_APP_URL, {
+        const res = await gasFetch(GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
@@ -5298,7 +5330,17 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
             secret: APP_SECRET
           })
         });
-      } catch(e){}
+        // 실패로 보는 것: 연결 오류 · HTTP 오류 · 서버가 분명히 success 가 아니라고 답한 경우 (답 형식이 달라도 성공을 실패로 오판하지 않게)
+        let json = null; try { json = await res.json(); } catch (e) {}
+        ok = !!res && res.ok !== false && !(json && json.status && json.status !== 'success');
+      } catch (e) { console.error('[confirmDeleteMemory] 삭제 실패:', e); }
+      if (ok) { showToast('추억 앨범이 삭제되었습니다.', '🗑'); return; }
+      // 실패 → 카드를 원래 자리로 되돌리고 알린다 (그 사이 받아오기로 이미 돌아와 있으면 그대로 둠)
+      if (targetItem && !GLOBAL_MEMORIES.some(m => m.id === id)) {
+        GLOBAL_MEMORIES.splice(Math.max(0, Math.min(targetIdx, GLOBAL_MEMORIES.length)), 0, targetItem);
+        renderMemories(true);
+      }
+      showToast('삭제하지 못했어요. 연결을 확인하고 다시 시도해 주세요.', '⚠️', 6000);
     }
     function deleteFromLightbox() {
       if (activeLightboxId) deleteMemory(activeLightboxId);
