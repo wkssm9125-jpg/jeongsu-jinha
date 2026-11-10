@@ -13,7 +13,8 @@
       var __t = localStorage.getItem('auth_token');
       if (__t) {
         document.documentElement.classList.add('unlocked');
-        var __api = localStorage.getItem('api_base') || "https://integrating-competing-showed-challenged.trycloudflare.com";
+        var __api = localStorage.getItem('api_base') || "";
+        if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/i.test(__api)) __api = "https://integrating-competing-showed-challenged.trycloudflare.com"; // 아래 isTrustedApiBase 와 같은 규칙
         window.__earlyData = fetch(__api + "/api?_=" + Date.now() + "&t=" + encodeURIComponent(__t), { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
       }
@@ -21,7 +22,7 @@
   </script>
   <meta name="theme-color" content="#000000" />
   <!-- 화면 버전: 올릴 때마다 반드시 더 큰 값으로 (서비스워커가 이 값으로 새/옛 버전을 구분) -->
-  <meta name="jj-version" content="202611100235" />
+  <meta name="jj-version" content="202611100346" />
   <!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열린다 (iOS는 이렇게 설치해야 웹 푸시 알림도 받을 수 있다) -->
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -650,6 +651,14 @@ body[data-identity="1"][data-me="Her"] #hisInputWrap { display:none; }
 .note-item-text { font-size:var(--fs-md); line-height:var(--lh-normal); white-space:pre-wrap; }
 .note-item-actions { display:flex; gap:var(--sp-h); flex-shrink:0; }
 .note-item-actions button { min-width:30px; min-height:26px; background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:var(--fs-sm); border-radius:var(--r-sm); }
+/* 👆 작은 버튼의 "누르는 범위"만 넓힌다(보이는 크기는 그대로). 손가락 기준 약 44px.
+      나란히 붙은 ✏️·🗑 는 서로 겹치지 않게 위아래로만 넓힌다. */
+.note-item-actions button, .fold-btn, .btn-remove-edit-photo, .sec-more { position:relative; }
+.note-item-actions button::after, .fold-btn::after, .btn-remove-edit-photo::after, .sec-more::after { content:""; position:absolute; }
+.note-item-actions button::after { inset:-9px 0; }
+.fold-btn::after { inset:-8px; }
+.sec-more::after { inset:-10px -4px; }
+.btn-remove-edit-photo::after { inset:-8px; }
 .note-item-actions button:active { color:var(--accent-pink); background:var(--bg-card-hover); }
 .notes-more-btn, .chat-older-btn { min-height:32px; padding:var(--sp-2) var(--sp-3); background:var(--bg-glass); border:none; border-radius:var(--r-md); color:var(--text-secondary); font-size:var(--fs-sm); font-weight:var(--fw-semibold); cursor:pointer; font-family:inherit; }
 .note-sender-line { display:flex; align-items:center; gap:var(--sp-1h); margin-bottom:var(--sp-1); padding:0 var(--sp-h); font-size:var(--fs-sm); color:var(--text-tertiary); }
@@ -2602,7 +2611,10 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
     // 연결이 안 되면 Apps Script에 "지금 주소"를 물어보고 자동으로 따라간다.
     // ------------------------------------------------------------------
     const API_DEFAULT = "https://integrating-competing-showed-challenged.trycloudflare.com";
-    let API_BASE = localStorage.getItem('api_base') || API_DEFAULT;
+    // 🛡️ 받아들일 서버 주소는 "https://<이름>.trycloudflare.com" 꼴만. 로그인 토큰이 이 주소로 가므로,
+    //    주소 알림 응답이 오염돼도 엉뚱한 곳으로 토큰을 보내지 않게 한다.
+    const isTrustedApiBase = (u) => /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/i.test(String(u || ''));
+    let API_BASE = isTrustedApiBase(localStorage.getItem('api_base')) ? localStorage.getItem('api_base') : API_DEFAULT;
     let __discovering = null;
     function discoverApiBase() {
       if (__discovering) return __discovering;
@@ -2610,6 +2622,7 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
         .then(r => r.json())
         .then(j => {
           const u = j && j.url ? String(j.url).replace(/\/+$/, '') : '';
+          if (u && !isTrustedApiBase(u)) { console.warn('[discoverApiBase] 믿을 수 없는 서버 주소라 무시:', u); return false; }
           if (u && u !== API_BASE) { API_BASE = u; localStorage.setItem('api_base', u); connectRealtime(true); return true; }
           return false;
         })
@@ -3149,6 +3162,17 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
         goToPushTarget(ptype, ptarget || '');
       }
     }
+    // 이미 열린 화면에서 알림을 누르면 서비스워커가 새로고침 대신 이 메시지를 보낸다 (쓰던 글이 날아가지 않게).
+    // 받았다고 답해야 서비스워커가 새로고침으로 넘어가지 않는다.
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (ev) => {
+      const d = ev.data;
+      if (!d || !d.jjOpen) return;
+      if (ev.ports && ev.ports[0]) ev.ports[0].postMessage('ok');
+      try {
+        const p = new URL(d.url, location.href).searchParams;
+        if (p.get('ptype')) goToPushTarget(p.get('ptype'), p.get('ptarget') || '');
+      } catch (e) {}
+    });
 
     function updatePushButtonUI() {
       const item = document.getElementById('navSettingsPush');
@@ -3716,10 +3740,11 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
     // (두 사람이 거의 동시에 저장하면 한쪽 저장이 다른 쪽 메시지를 덮어쓸 수 있는데, 그때 사라진 내 메시지를 되살려 다시 저장)
     const __chatResyncTries = {};
     function mergeCloudChat(cloudList, truncated) {
-      if (!Array.isArray(cloudList) || cloudList.length === 0) return { merged: cloudList || [], extras: [] };
+      // 🛡️ 서버 목록이 비어 있어도 바로 돌려주지 않는다. 예전엔 여기서 끝나서, 아직 서버에 안 들어간 내 첫 메시지가 지워졌다.
+      if (!Array.isArray(cloudList)) return { merged: [], extras: [] };
       const cloudIds = new Set(cloudList.map(m => m && m.id));
       const cutoff = Date.now() - 3 * 86400000;
-      let oldestCloud = Infinity;
+      let oldestCloud = cloudList.length ? Infinity : 0; // 비어 있으면 "최근 3일 안의 내 메시지"는 모두 살린다
       cloudList.forEach(m => { if (m && (m.time || 0) < oldestCloud) oldestCloud = m.time || 0; });
       if (truncated) {
         // 서버는 최근 메시지만 보냈다 → 그보다 예전 것은 이 기기에 있던 그대로 둔다
@@ -5929,8 +5954,10 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
       const input = document.getElementById("bucketInput");
       const text = input.value.trim();
       if (!text) return;
-      registerLocalAction();
       const list = getBuckets();
+      // 🛡️ 버킷은 글자(text)로 삭제를 표시하므로, 같은 글자 항목이 둘이면 하나를 지울 때 둘 다 지워진다 → 중복을 막는다
+      if (list.some(b => b && String(b.text).trim() === text)) { showToast('이미 있는 버킷이에요.', '🎯'); return; }
+      registerLocalAction();
       list.unshift({ text, done: false });
       saveBuckets(list, 'bucket_added');
       input.value = '';
@@ -6124,10 +6151,17 @@ html.tron-boot body { animation:tronBoot 1.4s ease-out both; }
       if (editingNoteId) {
         // 수정 모드: 기존 쪽지 내용만 바꾸고 새로 만들지 않는다
         const idx = saved.findIndex(n => n.id === editingNoteId);
-        if (idx > -1) {
-          saved[idx].text = text;
-          saved[idx].edited = true;
+        if (idx === -1) {
+          // 🛡️ 고치는 사이 그 쪽지가 지워졌다(상대가 지움 등). 예전엔 "수정되었습니다"를 띄우고 쓴 글까지 지웠다.
+          //    → 수정 모드만 끄고 쓴 글은 입력칸에 남겨 둔다. 다시 누르면 새 쪽지로 남는다.
+          editingNoteId = null;
+          document.getElementById('btnSaveNote').innerText = '쪽지 남기기';
+          document.getElementById('btnCancelEditNote').style.display = 'none';
+          showToast('이 쪽지는 이미 지워졌어요. 쓴 글은 남겨 뒀으니 다시 누르면 새 쪽지로 남겨요.', '⚠️', 6000);
+          return;
         }
+        saved[idx].text = text;
+        saved[idx].edited = true;
         localStorage.setItem('couple_notes', JSON.stringify(saved));
         cancelEditNote();
         loadNotes();

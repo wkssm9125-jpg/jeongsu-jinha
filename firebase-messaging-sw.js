@@ -76,12 +76,19 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || './';
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windowClients) => {
       for (const client of windowClients) {
         if ('focus' in client) {
-          client.focus();
-          // 이미 열려 있던 탭이면 그 탭을 새 이동 정보가 담긴 주소로 새로고침해서 해당 항목을 열어준다
-          if ('navigate' in client) return client.navigate(targetUrl);
+          try { await client.focus(); } catch (e) {}
+          // 🛡️ 이미 열린 화면은 새로고침하지 않고 "이 항목으로 가라"는 메시지만 보낸다.
+          //    (예전엔 새로고침해서 쓰던 채팅·쪽지가 날아갔다) 1.5초 안에 화면이 답하지 않으면(옛 버전 화면) 예전처럼 이동.
+          const handled = await new Promise((resolve) => {
+            const ch = new MessageChannel();
+            const t = setTimeout(() => resolve(false), 1500);
+            ch.port1.onmessage = () => { clearTimeout(t); resolve(true); };
+            try { client.postMessage({ jjOpen: true, url: targetUrl }, [ch.port2]); } catch (e) { clearTimeout(t); resolve(false); }
+          });
+          if (!handled && 'navigate' in client) return client.navigate(targetUrl);
           return;
         }
       }
@@ -193,6 +200,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith((async () => {
       const cache = await caches.open(STATIC_CACHE);
       const hit = await cache.match(req);
+      // 우리 사이트의 아이콘·manifest 는 주소에 버전이 없어서, 저장본을 바로 주되 뒤에서 최신본으로 갈아 둔다
+      // (예전엔 한 번 저장하면 영원히 옛 아이콘을 썼다). 외부 CDN 파일은 주소에 버전이 있어 그대로 둔다.
+      if (hit && req.url.startsWith(SCOPE_URL)) {
+        // cache:'no-cache' = 브라우저 자체 캐시를 건너뛰고 서버에 "바뀌었나?"만 물어본다(안 바뀌었으면 가벼운 304)
+        event.waitUntil(fetch(req, { cache: 'no-cache' }).then((r) => { if (r && r.ok) return cache.put(req, r); }).catch(() => {}));
+      }
       if (hit) return hit;
       const res = await fetch(req);
       if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone()).catch(() => {});
